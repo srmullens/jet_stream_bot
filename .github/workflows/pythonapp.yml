@@ -24,8 +24,5 @@ jobs:
 
     - name: Run code
       run: python when_model_updates.py
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
       with:
-        github_token: ${{ secrets.SECRET_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
