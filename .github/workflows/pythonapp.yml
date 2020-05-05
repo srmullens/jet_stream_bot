@@ -1,6 +1,6 @@
 name: when_model_updates
 
-on: [push]
+#on: [push]
 
 #on:
 #  schedule:
@@ -27,7 +27,8 @@ jobs:
           git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .
-          git commit -m "Add changes"
+          # git commit -m "Add changes"
+          git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
 
     - name: Push changes
       uses: ad-m/github-push-action@master
