@@ -55,7 +55,7 @@ with open('./model_available.csv') as ma_csv:
 
 last = rows[-1]
 print(f'--> Got file.\n--> Last: {last}')
-print(f'{last['run']} vs {date_recorded} is {last['run'] == date_recorded}')
+print(f'{last["run"]} vs {date_recorded} is {last["run"] == date_recorded}')
 # Search for the file.
 if last['run'] == date_recorded:
     print('--> Already found most recent run. Done')
