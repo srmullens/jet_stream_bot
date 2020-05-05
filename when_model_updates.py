@@ -11,17 +11,17 @@ import csv
 import xarray as xr
 
 def look_for_file(time):
-    print(f'In look_for_file: {time:%Y%m%d%H00}')
+    print(f'  --> In look_for_file: {time:%Y%m%d%H00}')
     try:
         ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                          f'GFS_Global_0p25deg_ana_{time:%Y%m%d}_{time:%H}00.grib2')
         if ds:
             found_time = dt.utcnow()
-            print(f'File found! {found_time:%Y%m%d%H00}')
+            print(f'  -->File found! {found_time:%Y%m%d%H00}')
         return found_time
     except Exception as e:
-        print(f'File not available. Done.')
-        print(f'Excpetion:\n{e.message}\n{e.args}')
+        print(f'  --> File not available. Done.')
+        print(f'  --> Excpetion:\n{e.message}\n{e.args}')
         return False
 
 
@@ -55,21 +55,21 @@ with open('./model_available.csv') as ma_csv:
 
 last = rows[-1]
 print(f'--> Got file.\n--> Last: {last}')
-print(f'{last["run"]} vs {date_recorded} is {last["run"] == date_recorded}')
+print(f'  --> {last["run"]} vs {date_recorded} is {last["run"] == date_recorded}')
 # Search for the file.
 if last['run'] == date_recorded:
-    print('--> Already found most recent run. Done')
+    print('  --> Already found most recent run. Done')
     found = False
 elif last['run'] == date_recorded_12hr_ago:
-    print(f'--> Looking for run from 6 hours ago: {date_recorded_6hr_ago}')
+    print(f'  --> Looking for run from 6 hours ago: {date_recorded_6hr_ago}')
     model_run = date_6hr_ago
     found = look_for_file(date_6hr_ago)
 elif last['run'] == date_recorded_6hr_ago:
-    print(f'--> Looking for most recent run: {date_recorded}')
+    print(f'  --> Looking for most recent run: {date_recorded}')
     model_run = date_recorded
     found = look_for_file(date_recorded)
 else:
-    print(f'--> Looking for most recent run: {date_recorded}')
+    print(f'  --> Looking for most recent run: {date_recorded}')
     model_run = date_recorded
     found = look_for_file(date_recorded)
 
@@ -83,8 +83,7 @@ if isinstance(found, dt):
 
         ma.writeheader()
         for row in rows:
-            print(f'Writing previous: {row}')
             ma.writerow(row)
-        print(f"Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H%M}'")
+        print(f"  --> Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H%M}'")
         ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H%M}'})
-    print('File updated. Done.')
+    print('--> File updated. Done.')
