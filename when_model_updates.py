@@ -71,7 +71,7 @@ else:
 
 # Log the results, if any.
 if isinstance(found, dt):
-    print(f'--> Found the most recent run! -> {found:%Y%m%d%H00}\n--> Update model_available.csv')
+    print(f'--> Found the most recent run! -> {found:%Y%m%d%H%M}\n--> Update model_available.csv')
     with open('./model_available.csv','w') as ma_csv:
         columns = ['run','available']
         ma = csv.DictWriter(ma_csv,fieldnames=columns)
@@ -80,7 +80,7 @@ if isinstance(found, dt):
         for row in rows:
             print(f'Writing previous: {row}')
             ma.writerow(row)
-        print(f"Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H00}'")
-        ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H00}'})
+        print(f"Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H%M}'")
+        ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H%M}'})
     print('File updated. Done.')
 
