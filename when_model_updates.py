@@ -55,7 +55,7 @@ with open('./model_available.csv') as ma_csv:
 
 last = rows[-1]
 print(f'--> Got file.\n--> Last: {last}')
-
+print(f'{last['run']} vs {date_recorded} is {last['run'] == date_recorded}')
 # Search for the file.
 if last['run'] == date_recorded:
     print('--> Already found most recent run. Done')
@@ -64,10 +64,14 @@ elif last['run'] == date_recorded_12hr_ago:
     print(f'--> Looking for run from 12 hours ago: {date_recorded_12hr_ago}')
     model_run = date_12hr_ago
     found = look_for_file(date_12hr_ago)
-else:
-    print(f'--> Looking for most recent run: {date_recorded_6hr_ago}')
+elif last['run'] == date_recorded_6hr_ago:
+    print(f'--> Looking for run from 6 hours ago: {date_recorded_6hr_ago}')
     model_run = date_6hr_ago
     found = look_for_file(date_6hr_ago)
+else:
+    print(f'--> Looking for most recent run: {date_recorded}')
+    model_run = date_recorded
+    found = look_for_file(date_recorded)
 
 
 # Log the results, if any.
