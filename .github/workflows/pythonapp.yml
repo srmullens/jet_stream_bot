@@ -1,6 +1,6 @@
 name: when_model_updates
 
-#on: [push]
+on: [push]
 
 #on:
 #  schedule:
