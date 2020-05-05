@@ -19,8 +19,9 @@ def look_for_file(time):
             found_time = dt.utcnow()
             print(f'File found! {found_time:%Y%m%d%H00}')
         return found_time
-    except:
+    except Exception as e:
         print(f'File not available. Done.')
+        print(f'Excpetion:\n{e.message}\n{e.args}')
         return False
 
 
