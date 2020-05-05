@@ -11,7 +11,7 @@ import csv
 import xarray as xr
 
 def look_for_file(time):
-    print(f'  --> In look_for_file: {time}')
+    print(f'  --> In look_for_file: {time:%Y%m%d%H00}')
     try:
         ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                          f'GFS_Global_0p25deg_ana_{time:%Y%m%d}_{time:%H}00.grib2')
@@ -59,17 +59,17 @@ if last['run'] == date_recorded:
     print('  --> Already found most recent run. Done')
     found = False
 elif last['run'] == date_recorded_12hr_ago:
-    print(f'  --> Looking for run from 6 hours ago: {date_recorded_6hr_ago}')
+    print(f'  --> Looking for run from 6 hours ago: {date_recorded_12hr_ago}')
     model_run = date_6hr_ago
     found = look_for_file(date_6hr_ago)
 elif last['run'] == date_recorded_6hr_ago:
     print(f'  --> Looking for most recent run: {date_recorded}')
     model_run = date_recorded
-    found = look_for_file(date_recorded)
+    found = look_for_file(date)
 else:
     print(f'  --> Looking for most recent run: {date_recorded}')
     model_run = date_recorded
-    found = look_for_file(date_recorded)
+    found = look_for_file(date)
 
 
 # Log the results, if any.
