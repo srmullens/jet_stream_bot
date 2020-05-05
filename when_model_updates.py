@@ -27,6 +27,7 @@ def look_for_file(time):
 
 # Get current time.
 today = dt.utcnow()
+print(f'--> Current time: {today:%Y%m%d%H00}')
 
 if today.hour<6: hour = 0
 elif today.hour<12: hour = 6
