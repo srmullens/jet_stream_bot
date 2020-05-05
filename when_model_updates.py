@@ -11,7 +11,7 @@ import csv
 import xarray as xr
 
 def look_for_file(time):
-    print(f'  --> In look_for_file: {time:%Y%m%d%H00}')
+    print(f'  --> In look_for_file: {time}')
     try:
         ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                          f'GFS_Global_0p25deg_ana_{time:%Y%m%d}_{time:%H}00.grib2')
