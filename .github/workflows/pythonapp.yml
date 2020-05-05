@@ -28,6 +28,15 @@ jobs:
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .
           git add --all
+          git rm -r 1da04b97-50b3-42ae-812f-f46ca8e03a05
+          git rm -r 2da703f0-9c0d-4444-a586-dc6a7e43969f
+          git rm -r 2e24fbc0-42ef-4fe7-806a-2888b74826ca
+          git rm -r 62235e6c-61f6-4edb-82a6-c9656e81b244
+          git rm -r 68463774-b4ea-4306-87e1-4355d8931b93
+          git rm -r 7402bc75-fef7-4acd-bcfb-33baea3ca0a2
+          git rm -r 97ac2777-db49-43d4-af3d-4e4e6e3d12c1
+          git rm -r 59d6ca63-3bd9-440d-a36a-1879751b5a55
+          git commit -m "Remove duplicated directory"
           # git commit -m "Add changes"
           git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
 
