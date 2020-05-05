@@ -11,13 +11,16 @@ import csv
 
 
 def look_for_file(time):
+    print(f'In look_for_file: {time:%Y%m%d%H00}')
     try:
         ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                          f'GFS_Global_0p25deg_ana_{time:%Y%m%d}_{time:%H}00.grib2')
         if ds:
             found_time = dt.utcnow()
+            print(f'File found! {found_time:%Y%m%d%H00}')
         return found_time
     except:
+        print(f'File not available. Done.')
         return False
 
 
@@ -41,26 +44,32 @@ date_recorded_12hr_ago = f'{date_12hr_ago:%Y%m%d%H00}'
 
 # Open log of results.
 rows=[]
+print('--> Get model_available.csv')
 with open('./model_available.csv') as ma_csv:
     rows_dict = csv.DictReader(ma_csv,delimiter=',')
     for row in rows_dict:
         rows.append(row)
 
 last = rows[-1]
+print(f'--> Got file.\n--> Last: {last}')
 
 # Search for the file.
 if last['run'] == date_recorded:
+    print('--> Already found most recent run. Done')
     found = False
 elif last['run'] == date_recorded_12hr_ago:
+    print(f'--> Looking for run from 12 hours ago: {date_recorded_12hr_ago}')
     model_run = date_12hr_ago
     found = look_for_file(date_12hr_ago)
 else:
+    print(f'--> Looking for most recent run: {date_recorded_6hr_ago}')
     model_run = date_12hr_ago
     found = look_for_file(date_6hr_ago)
 
 
 # Log the results, if any.
 if isinstance(found, dt):
+    print(f'--> Found the most recent run! -> {found:%Y%m%d%H00}\n--> Update model_available.csv')
     with open('./model_available.csv') as ma_csv:
         columns = ['run','available']
         ma = csv.DictWriter(ma_csv,fieldnames=columns)
@@ -69,5 +78,5 @@ if isinstance(found, dt):
         for row in rows:
             ma.writerow(row)
         ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H00}'})
-
+    print('File updated. Done.')
 
