@@ -19,9 +19,6 @@ jobs:
     - name: Import dependencies
       run: pip install xarray pydap netCDF4
 
-    - name: chmod
-      run: chmod 666 ./model_available.csv
-
     - name: Run code
       run: python when_model_updates.py
 
@@ -30,7 +27,7 @@ jobs:
           git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .
-          git commit -am "Add changes"
+          git commit -m "Add changes"
 
     - name: Push changes
       uses: ad-m/github-push-action@master
