@@ -8,7 +8,7 @@
 
 from datetime import datetime as dt, timedelta
 import csv
-
+import xarray as xr
 
 def look_for_file(time):
     print(f'In look_for_file: {time:%Y%m%d%H00}')
@@ -71,7 +71,7 @@ else:
 # Log the results, if any.
 if isinstance(found, dt):
     print(f'--> Found the most recent run! -> {found:%Y%m%d%H00}\n--> Update model_available.csv')
-    with open('./model_available.csv') as ma_csv:
+    with open('./model_available.csv','w') as ma_csv:
         columns = ['run','available']
         ma = csv.DictWriter(ma_csv,fieldnames=columns)
 
