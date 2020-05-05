@@ -27,6 +27,7 @@ jobs:
           git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .
+          git add --all
           # git commit -m "Add changes"
           git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
 
