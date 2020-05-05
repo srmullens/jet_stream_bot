@@ -65,7 +65,7 @@ elif last['run'] == date_recorded_12hr_ago:
     found = look_for_file(date_12hr_ago)
 else:
     print(f'--> Looking for most recent run: {date_recorded_6hr_ago}')
-    model_run = date_12hr_ago
+    model_run = date_6hr_ago
     found = look_for_file(date_6hr_ago)
 
 
