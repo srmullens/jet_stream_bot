@@ -16,8 +16,11 @@ jobs:
       with:
         python-version: 3.7.7
 
-    - name: Import dependency
+    - name: Import dependencies
       run: pip install xarray pydap netCDF4
+
+    - name: chmod
+      run: chmod 666 ./model_available.csv
 
     - name: Run code
       run: python when_model_updates.py
