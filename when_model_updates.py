@@ -43,8 +43,6 @@ date_recorded = f'{date:%Y%m%d%H00}'
 date_recorded_6hr_ago = f'{date_6hr_ago:%Y%m%d%H00}'
 date_recorded_12hr_ago = f'{date_12hr_ago:%Y%m%d%H00}'
 
-print(f'{today:%Y%m%d%H00}--> {date_recorded}, {date_recorded_6hr_ago}, {date_recorded_12hr_ago}')
-
 # Open log of results.
 rows=[]
 print('--> Get model_available.csv')
@@ -55,7 +53,7 @@ with open('./model_available.csv') as ma_csv:
 
 last = rows[-1]
 print(f'--> Got file.\n--> Last: {last}')
-print(f'  --> {last["run"]} vs {date_recorded} is {last["run"] == date_recorded}')
+
 # Search for the file.
 if last['run'] == date_recorded:
     print('  --> Already found most recent run. Done')
@@ -86,4 +84,6 @@ if isinstance(found, dt):
             ma.writerow(row)
         print(f"  --> Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H%M}'")
         ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H%M}'})
-    print('--> File updated. Done.')
+    print('--> File updated.')
+
+print('--> DONE.')
