@@ -17,7 +17,7 @@ jobs:
         python-version: 3.7.7
 
     - name: Import dependency
-      run: pip install xarray
+      run: pip install xarray pydap netCDF4
 
     - name: Run code
       run: python when_model_updates.py
