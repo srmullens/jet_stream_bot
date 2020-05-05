@@ -43,6 +43,7 @@ date_recorded = f'{date:%Y%m%d%H00}'
 date_recorded_6hr_ago = f'{date_6hr_ago:%Y%m%d%H00}'
 date_recorded_12hr_ago = f'{date_12hr_ago:%Y%m%d%H00}'
 
+print(f'{today:%Y%m%d%H00}--> {date_recorded}, {date_recorded_6hr_ago}, {date_recorded_12hr_ago}')
 
 # Open log of results.
 rows=[]
