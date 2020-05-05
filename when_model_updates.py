@@ -61,13 +61,13 @@ if last['run'] == date_recorded:
     print('--> Already found most recent run. Done')
     found = False
 elif last['run'] == date_recorded_12hr_ago:
-    print(f'--> Looking for run from 12 hours ago: {date_recorded_12hr_ago}')
-    model_run = date_12hr_ago
-    found = look_for_file(date_12hr_ago)
-elif last['run'] == date_recorded_6hr_ago:
     print(f'--> Looking for run from 6 hours ago: {date_recorded_6hr_ago}')
     model_run = date_6hr_ago
     found = look_for_file(date_6hr_ago)
+elif last['run'] == date_recorded_6hr_ago:
+    print(f'--> Looking for most recent run: {date_recorded}')
+    model_run = date_recorded
+    found = look_for_file(date_recorded)
 else:
     print(f'--> Looking for most recent run: {date_recorded}')
     model_run = date_recorded
@@ -88,4 +88,3 @@ if isinstance(found, dt):
         print(f"Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H%M}'")
         ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H%M}'})
     print('File updated. Done.')
-
