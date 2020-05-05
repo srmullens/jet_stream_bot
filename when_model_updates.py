@@ -21,7 +21,7 @@ def look_for_file(time):
         return found_time
     except Exception as e:
         print(f'  --> File not available. Done.')
-        print(f'  --> Excpetion:\n{e.message}\n{e.args}')
+        print(f'  --> Excpetion:\n{e.args}')
         return False
 
 
