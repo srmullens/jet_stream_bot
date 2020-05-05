@@ -78,7 +78,7 @@ if isinstance(found, dt):
 
         ma.writeheader()
         for row in rows:
-            print(f'Writing previous: {row})
+            print(f'Writing previous: {row}')
             ma.writerow(row)
         print(f"Writing new: 'run':'{model_run:%Y%m%d%H00}','available':'{found:%Y%m%d%H00}'")
         ma.writerow({'run':f'{model_run:%Y%m%d%H00}','available':f'{found:%Y%m%d%H00}'})
