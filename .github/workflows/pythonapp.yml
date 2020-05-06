@@ -2,7 +2,7 @@ name: when_model_updates
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/5 3,9,15,18 * * *'
 
 jobs:
   build:
