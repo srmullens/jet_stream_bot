@@ -1,0 +1,66 @@
+name: Jet Stream Bot
+
+on:
+  push
+  #schedule:
+  #  - cron: '50 3,9,15,21 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    
+    # Checkout allows us to use the files in this repository.
+    - uses: actions/checkout@v2
+    - name: Setup Miniconda
+      # This sets up conda... 
+      # ...auto-creates a test environment (super annoying)...
+      # ... and installs the python version and dependencies there.
+      uses: goanpeca/setup-miniconda@v1
+      with:
+        auto-update-conda: true
+        miniconda-version: latest
+        activate-environment: test
+        python-version: 3.7
+    
+      - name: Install dependencies
+      run: |
+        # Change source to use conda commands
+        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        # Change environment to where all the dependencies are installed anyway.
+        conda activate test
+        # This needs to be installed via apt-get...
+        sudo apt-get install libproj-dev
+        # ... but most everything else can come via conda-forge.
+        conda install -c conda-forge wheel numpy xarray pillow matplotlib cartopy twython
+        
+    - name: Run code
+      shell: bash
+      env:
+        consumer_key: ${{ secrets.TWITTER_API_KEY }}
+        consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
+        access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      run: |
+        # Change source to use conda commands
+        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        # Change environment to where all the dependencies were installed.
+        conda activate test
+        # Run the code!
+        python3 jet_stream_bot.py
+        
+    # We created some files. But we need to commit them to the repository.
+    - name: Commit files
+      run: |
+          git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
+          git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
+          git add .        # Adds file to commit
+          git add --all    # Adds only the file, not the folder where Python & conda was set up.
+          # git commit -m "Add changes"
+          git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
+          
+    # Now push committed changes to the repo.
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
