@@ -33,6 +33,8 @@ jobs:
         sudo apt-get install libproj-dev
         # ... but most everything else can come via conda-forge.
         conda install -c conda-forge wheel numpy xarray pillow matplotlib cartopy twython
+        # One more.
+        pip install metpy
         
     - name: Run code
       shell: bash
