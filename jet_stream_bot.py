@@ -980,7 +980,7 @@ except:
 #############################
 # Set date for desired data #
 #############################
-today = dt.utcnow()
+today = dt.utcnow() - timedelta(hours=3, minutes=50)
 if today.hour<6: hour = 0
 elif today.hour<12: hour = 6
 elif today.hour<18: hour = 12
@@ -990,12 +990,12 @@ else: hour = 18
 ############################################################
 # Get GFS data for Geopotential Height and Wind components #
 ############################################################
-try:
-    date = dt(today.year, today.month, today.day, hour)
-    print(f"--> Getting data for {date:%Y-%m-%d %H UTC}")
-    ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
+#try:
+date = dt(today.year, today.month, today.day, hour)
+print(f"--> Getting data for {date:%Y-%m-%d %H UTC}")
+ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                          f'GFS_Global_0p25deg_ana_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(['Geopotential_height_isobaric','u-component_of_wind_isobaric','v-component_of_wind_isobaric'])
-
+"""
 except:
     # Go back one synoptic time to ensure data availability
     date = dt(today.year, today.month, today.day, hour) - timedelta(hours=6)
@@ -1003,7 +1003,7 @@ except:
 
     ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                          f'GFS_Global_0p25deg_ana_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(['Geopotential_height_isobaric','u-component_of_wind_isobaric','v-component_of_wind_isobaric'])
-
+"""
 
 
 ###############
