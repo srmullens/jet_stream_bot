@@ -33,6 +33,7 @@ jobs:
         python -m pip install --upgrade pip
         # This needs to be installed via apt-get...
         sudo apt-get install libproj-dev
+        pip install wheel
         pip install -r requirements.txt
         # ... but most everything else can come via conda-forge.
         #conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy twython
