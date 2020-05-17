@@ -31,9 +31,9 @@ jobs:
         conda activate test
         # Install dependencies via requirements.txt
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
         # This needs to be installed via apt-get...
-        #sudo apt-get install libproj-dev
+        sudo apt-get install libproj-dev
+        pip install -r requirements.txt
         # ... but most everything else can come via conda-forge.
         #conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy twython
         # One more.
