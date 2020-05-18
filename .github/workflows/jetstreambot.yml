@@ -36,7 +36,7 @@ jobs:
         #conda install -c conda-forge wheel geos
         #pip install -r requirements.txt
         # ... but most everything else can come via conda-forge.
-        conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy==0.17.0 twython metpy==0.11.1
+        conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy==0.17.0 twython pint==0.11 metpy==0.11.1
         # One more.
         #pip install metpy
         #pip install -r requirements.txt
