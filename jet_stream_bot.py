@@ -818,8 +818,8 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
         plt.title(f'\n0.25\N{DEGREE SIGN} GFS Analysis', loc='left')
 
     # Save the image
-    #savepath = f"{date:%Y%m%d%H}_{level}_{grid_fill}.png"
-    savepath = f"{level}_{grid_fill}.png"
+    #savepath = f"images/{date:%Y%m%d%H}_{level}_{grid_fill}.png"
+    savepath = f"images/{level}_{grid_fill}.png"
     plt.savefig(savepath,bbox_inches='tight')
 
 
@@ -879,7 +879,7 @@ def make_animation(level):
 
         # Save gif
         frames[0].save(
-            filenames[i],
+            'images/'+filenames[i],
             format='GIF',
             append_images=frames,
             save_all=True,
