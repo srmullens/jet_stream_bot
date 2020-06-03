@@ -30,13 +30,13 @@ jobs:
         # Change environment to where all the dependencies are installed anyway.
         conda activate test
         # Install dependencies via requirements.txt
-        python -m pip install --upgrade pip
+        #python -m pip install --upgrade pip
         # This needs to be installed via apt-get...
         sudo apt-get install libproj-dev
         #conda install -c conda-forge wheel geos
         #pip install -r requirements.txt
         # ... but most everything else can come via conda-forge.
-        conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy twython metpy
+        conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy=0.17 twython metpy
         # One more.
         #pip install metpy
         #pip install -r requirements.txt
