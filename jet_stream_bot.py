@@ -1011,7 +1011,7 @@ except:
 
 for level in levels:
     print(f"\n*** {level}hPa ***\n")
-    """
+    
     print("LOOKING FOR PROBLEMS")
     # Catch any problems before we begin.
     args = [plots,
@@ -1053,7 +1053,7 @@ for level in levels:
                     'extent':extent
             }
         plot_the_map(*all_args,**kwargs)
-    """
+    
     print("MAKING ANIMATIONS")
     # Make animations from the maps you created.
     true_false = make_animation(level)
