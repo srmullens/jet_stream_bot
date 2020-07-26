@@ -72,7 +72,7 @@ plots = [{'name':'Wind','contour_wind':'real','plot_barbs':'real','grid_fill':'r
 ###########################################
 # List of pressure levels to plot.
 #levels = [200, 250, 300, 400, 500]
-levels = [400, 500]
+levels = [200]
 
 # Do you want height contours?
 plot_hghts = True
@@ -1559,8 +1559,6 @@ if not forecast:
         ds = xr.open_dataset(f'{analysis_url}_{date:%Y%m%d}_{date:%H}00.grib2')
         ds = ds.metpy.parse_cf(parse_fields)
 
-        #ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
-        #                     f'GFS_Global_0p25deg_ana_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(parse_fields)
 
     except:
         # Go back another synoptic time to find data.
@@ -1571,8 +1569,6 @@ if not forecast:
         ds = xr.open_dataset(f'{analysis_url}_{date:%Y%m%d}_{date:%H}00.grib2')
         ds = ds.metpy.parse_cf(parse_fields)
 
-        #ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
-        #                     f'GFS_Global_0p25deg_ana_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(parse_fields)
 
 
 # Forecast data
@@ -1582,8 +1578,6 @@ elif forecast:
         ds = xr.open_dataset(f'{forecast_url}_{date:%Y%m%d}_{date:%H}00.grib2')
         ds = ds.metpy.parse_cf(parse_fields)
 
-        #ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg/'
-        #                    f'GFS_Global_0p25deg_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(parse_fields)
     except:
         # Go back another synoptic time to find data.
         date = dt(today.year, today.month, today.day, hour) - timedelta(hours=6)
@@ -1593,8 +1587,6 @@ elif forecast:
         ds = xr.open_dataset(f'{forecast_url}_{date:%Y%m%d}_{date:%H}00.grib2')
         ds = ds.metpy.parse_cf(parse_fields)
 
-        #ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg/'
-        #                    f'GFS_Global_0p25deg_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(parse_fields)
 
 
 
@@ -1616,7 +1608,14 @@ tweet_images(date,fhr,send_tweet)
 ###################################
 # Then, let's clean up the files. #
 ###################################
-#move_images()
+png_list = [f for f in os.listdir('./') if file.endswith(".png")]
+gif_list = [f for f in os.listdir('./') if file.endswith(".gif")]
+
+for f in png_list:
+    os.remove(f)
+
+for f in gif_list:
+    os.remove(f)
 
 
 
