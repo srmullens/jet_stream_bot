@@ -326,7 +326,7 @@ def tweet(text, image, send_tweet, reply):
                 for image in image_list:
                     response = twitter.upload_media(media=open(image, 'rb'))
             elif isinstance(image,str):
-                response = twitter.upload_media(media=open(img, 'rb'))
+                response = twitter.upload_media(media=open(image, 'rb'))
 
             # Send the tweet
             twitter.update_status(status=text, media_ids=[response['media_id']])
@@ -348,7 +348,7 @@ def tweet(text, image, send_tweet, reply):
                 for image in image_list:
                     response = twitter.upload_media(media=open(image, 'rb'))
             elif isinstance(image,str):
-                response = twitter.upload_media(media=open(img, 'rb'))
+                response = twitter.upload_media(media=open(image, 'rb'))
 
             # Send the tweet.
             twitter.update_status(status=text,
