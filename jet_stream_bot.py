@@ -71,8 +71,7 @@ plots = [{'name':'Wind','contour_wind':'real','plot_barbs':'real','grid_fill':'r
 # Settings for calculations and plotting. #
 ###########################################
 # List of pressure levels to plot.
-#levels = [200, 250, 300, 400, 500]
-levels = [200]
+levels = [200, 250, 300, 400, 500]
 
 # Do you want height contours?
 plot_hghts = True
@@ -95,7 +94,7 @@ location = 'CONUS'
 replace = True
 
 # Use forecast data? False uses analysis data.
-forecast = False
+forecast = True
 
 # Send tweet, or no?
 send_tweet = False
@@ -1608,8 +1607,8 @@ tweet_images(date,fhr,send_tweet)
 ###################################
 # Then, let's clean up the files. #
 ###################################
-png_list = [f for f in os.listdir('./') if file.endswith(".png")]
-gif_list = [f for f in os.listdir('./') if file.endswith(".gif")]
+png_list = [f for f in os.listdir('./') if f.endswith(".png")]
+gif_list = [f for f in os.listdir('./') if f.endswith(".gif")]
 
 for f in png_list:
     os.remove(f)
