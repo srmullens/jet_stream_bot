@@ -95,7 +95,7 @@ replace = True
 forecast = True
 
 # Send tweet, or no?
-send_tweet = False
+send_tweet = True
 
 # What forecast hour do you want to plot?
 if forecast: fhr = 9
