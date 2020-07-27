@@ -1231,7 +1231,7 @@ def make_animation(level):
             optimize=True,
             loop=0)  # forever
 
-        print(f'--> Made {filenames[i]')
+        print(f'--> Made {filenames[i]}')
 
     # Time to plot data
     time_elapsed = dt.now() - start_time
