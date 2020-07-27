@@ -10,6 +10,7 @@
 ########################################################################
 
 from datetime import datetime as dt, timedelta
+import time
 import os
 import copy
 
@@ -34,7 +35,6 @@ GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
 import PIL
 from twython import Twython
-
 
 
 
@@ -95,7 +95,7 @@ replace = True
 forecast = True
 
 # Send tweet, or no?
-send_tweet = True
+send_tweet = False
 
 # What forecast hour do you want to plot?
 if forecast: fhr = 9
@@ -363,7 +363,7 @@ def tweet(text, image, send_tweet, reply):
         if not reply: print('    --> TEST Original tweet')
         elif reply: print('    --> TEST Reply to tweet')
 
-    print("Tweeted.")
+    print("        Tweeted.")
 
 
 
@@ -1216,7 +1216,7 @@ def make_animation(level):
         frames = []
         print()
         for j,file in enumerate(files):
-            print('Appending file', file)
+            #print('Appending file', file)
             new_frame = PIL.Image.open(f'{level}/{file}', mode='r')
             frames.append(new_frame)
             if j>0: frames.append(new_frame)
@@ -1231,6 +1231,7 @@ def make_animation(level):
             optimize=True,
             loop=0)  # forever
 
+        print(f'--> Made {filenames[i]')
 
     # Time to plot data
     time_elapsed = dt.now() - start_time
@@ -1478,11 +1479,19 @@ def tweet_images(date,fhr,send_tweet):
 
     reply = True
 
+    time.sleep(10)
+
     tweet(f"{fhr}-hour GFS 200-hPa forecast for {date+timedelta(hours=fhr):%H UTC %-d %B}.\n\nForecasted wind, Geostrophic wind, divergence, and ageostrophic wind.",["./200/200_real.png","./200/200_geo.png","./200/200_ageo_div.png","./200/200_ageo.png"],send_tweet,reply)
+
+    time.sleep(10)
 
     tweet(f"Supergeostrophic Wind\n\n{fhr}-hour GFS 200-hPa forecast for {date+timedelta(hours=fhr):%H UTC %-d %B}.\n\nSupergeostrophic wind, its divergence, and forecasted wind.",["./200/200_ageo_along.png","./200/200_ageo_along_div.png","./200/200_real.png"],send_tweet,reply)
 
+    time.sleep(10)
+
     tweet(f"Four Quadrant Model\n\n{fhr}-hour GFS 200-hPa forecast for {date+timedelta(hours=fhr):%H UTC %-d %B}.\n\nWind perpendicular to streamlines, its divergence, and forecasted wind.",["./200/200_ageo_perp.png","./200/200_ageo_perp_div.png","./200/200_real.png"],send_tweet,reply)
+
+    time.sleep(10)
 
     tweet(f"Comparing altitudes\n\n{fhr}-hour GFS 200-hPa forecast for {date+timedelta(hours=fhr):%H UTC %-d %B}.\n\nForecasted divergences at 200, 250, 300, and 400-hPa.",["./200/200_ageo_div.png","./250/250_ageo_div.png","./300/300_ageo_div.png","./400/400_ageo_div.png"],send_tweet,reply)
 
