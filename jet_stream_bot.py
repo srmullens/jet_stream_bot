@@ -849,7 +849,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
 
 
     # Start figure
-    fig1 = plt.figure(1, figsize=(16, 9), dpi=300)
+    fig1 = plt.figure(1, figsize=(16, 9), dpi=180)
     ax1 = plt.subplot(111, projection=mapcrs)
 
     # Set extent
