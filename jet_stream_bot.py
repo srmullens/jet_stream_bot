@@ -334,7 +334,7 @@ def tweet(text, image, send_tweet, reply):
         # Tweet a reply.
         elif reply:
             # ...Get most recent tweet's ID from the timeline...
-            timeline = twitter.get_user_timeline(screen_name='SmoothedPC',count=5)
+            timeline = twitter.get_user_timeline(screen_name='jet_stream_bot',count=5)
             tweet_list = []
             for tweet in timeline:
                 created = dt.strptime(tweet['created_at'],'%a %b %d %H:%M:%S %z %Y')
