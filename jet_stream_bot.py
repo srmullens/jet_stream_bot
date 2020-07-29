@@ -98,7 +98,7 @@ forecast = True
 send_tweet = True
 
 # What forecast hour do you want to plot?
-if forecast: fhr = 9
+if forecast: fhr = 12
 else: fhr = 0
 
 
@@ -319,22 +319,25 @@ def tweet(text, image, send_tweet, reply):
         twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
 
         # Tweet new status.
+        response_list=()
         if not reply:
             # Assemble images
             if isinstance(image,list):
-                image_list = [i for i in image]
-                for image in image_list:
-                    response = twitter.upload_media(media=open(image, 'rb'))
+                for img in image:
+                    response = twitter.upload_media(media=open(img, 'rb'))
+                    response_list = (*response_list, response['media_id'])
             elif isinstance(image,str):
                 response = twitter.upload_media(media=open(image, 'rb'))
+                response_list = (*response_list, response['media_id'])
 
             # Send the tweet
-            twitter.update_status(status=text, media_ids=[response['media_id']])
+            #twitter.update_status(status=text, media_ids=[response['media_id']])
+            twitter.update_status(status=text, media_ids=list(*response_list))
 
         # Tweet a reply.
         elif reply:
             # ...Get most recent tweet's ID from the timeline...
-            timeline = twitter.get_user_timeline(screen_name='jetstreambot',count=5)
+            timeline = twitter.get_user_timeline(screen_name='jet_stream_bot',count=5)
             tweet_list = []
             for tweet in timeline:
                 created = dt.strptime(tweet['created_at'],'%a %b %d %H:%M:%S %z %Y')
@@ -344,15 +347,20 @@ def tweet(text, image, send_tweet, reply):
 
             # Assemble images
             if isinstance(image,list):
-                image_list = [i for i in image]
-                for image in image_list:
-                    response = twitter.upload_media(media=open(image, 'rb'))
+                for img in image:
+                    response = twitter.upload_media(media=open(img, 'rb'))
+                    response_list = (*response_list, response['media_id'])
             elif isinstance(image,str):
                 response = twitter.upload_media(media=open(image, 'rb'))
+                response_list = (*response_list, response['media_id'])
 
             # Send the tweet.
+            #twitter.update_status(status=text,
+            #                    media_ids=[response['media_id']],
+            #                    in_reply_to_status_id=tweet_id,
+            #                    auto_populate_reply_metadata=True)
             twitter.update_status(status=text,
-                                media_ids=[response['media_id']],
+                                media_ids=list(*response_list),
                                 in_reply_to_status_id=tweet_id,
                                 auto_populate_reply_metadata=True)
 
@@ -1214,7 +1222,6 @@ def make_animation(level):
 
     for i,files in enumerate(files_list):
         frames = []
-        print()
         for j,file in enumerate(files):
             #print('Appending file', file)
             new_frame = PIL.Image.open(f'{level}/{file}', mode='r')
