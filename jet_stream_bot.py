@@ -331,6 +331,8 @@ def tweet(text, image, send_tweet, reply):
                 response_list = (*response_list, response['media_id'])
 
             # Send the tweet
+            print(*response_list)
+            print(response['media_id']
             #twitter.update_status(status=text, media_ids=[response['media_id']])
             twitter.update_status(status=text, media_ids=list(*response_list))
 
@@ -355,6 +357,8 @@ def tweet(text, image, send_tweet, reply):
                 response_list = (*response_list, response['media_id'])
 
             # Send the tweet.
+            print(*response_list)
+            print(response['media_id']
             #twitter.update_status(status=text,
             #                    media_ids=[response['media_id']],
             #                    in_reply_to_status_id=tweet_id,
