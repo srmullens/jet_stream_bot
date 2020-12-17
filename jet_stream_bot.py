@@ -86,6 +86,7 @@ plots = [
 # List of pressure levels to plot.
 levels = [200, 250, 300, 400]
 #levels = [200]
+focus_level = 250
 
 # Do you want height contours?
 plot_hghts = True
@@ -119,7 +120,7 @@ if not use_smooth: replace = False
 red_on_map = False
 
 # Send tweet, or no?
-send_tweet = True
+send_tweet = False
 
 # What forecast hour do you want to plot?
 if forecast: fhr_list = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48] #,54,60,66,72,78,84,90,96]
@@ -608,16 +609,22 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     if use_smooth: use_hght = smooth_hght
     else: use_hght = hght
 
-    # Get geographical height data for 850mb
-    hght_850 = ds['Geopotential_height_isobaric'].metpy.loc[location_850]
-    smooth_hght_850 = mpcalc.smooth_n_point(hght_850, 9, num_passes)
-    use_hght_850 = hght_850
-
     # Get U and V wind component data
     uwind = ds['u-component_of_wind_isobaric'].metpy.loc[location]
     vwind = ds['v-component_of_wind_isobaric'].metpy.loc[location]
     uwind = mpcalc.smooth_n_point(uwind, 9, num_passes)
     vwind = mpcalc.smooth_n_point(vwind, 9, num_passes)
+
+    # Get geographical height data for 850mb
+    hght_850 = ds['Geopotential_height_isobaric'].metpy.loc[location_850]
+    smooth_hght_850 = mpcalc.smooth_n_point(hght_850, 9, num_passes)
+    use_hght_850 = hght_850
+
+    # Get U and V wind component data for 850mb
+    uwind_850 = ds['u-component_of_wind_isobaric'].metpy.loc[location_850]
+    vwind_850 = ds['v-component_of_wind_isobaric'].metpy.loc[location_850]
+    uwind_850 = mpcalc.smooth_n_point(uwind_850, 9, num_passes)
+    vwind_850 = mpcalc.smooth_n_point(vwind_850, 9, num_passes)
 
 
     ####
@@ -639,10 +646,12 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     # Let MetPy calculate the Coriolis parameter.
     f = mpcalc.coriolis_parameter(lat)
 
-    # Let MetPy calculate the geostrophic and ageostrophic wind components
+    # Let MetPy calculate the geostrophic and ageostrophic wind components.
     uGEO, vGEO = mpcalc.geostrophic_wind(use_hght, f, dx, dy, dim_order='yx')
     uaGEO, vaGEO = ageostrophic_wind(use_hght, uwind, vwind, f, dx, dy, dim_order='yx')
 
+    # Let MetPy calculate the vertical component of the relative vorticity at 850mb.
+    vort_850 = mpcalc.vorticity(uwind_850, vwind_850, dx, dy)
 
 
     ####
@@ -730,6 +739,18 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     #   aGEO wind across GEO wind is 4-quadrant model of jet streaks.
     aGEO_along_divergence = mpcalc.divergence(aGEO_along_u,aGEO_along_v,dx,dy)
     aGEO_perp_divergence  = mpcalc.divergence(aGEO_perp_u,aGEO_perp_v,dx,dy)
+
+
+
+    ####
+    # Find 1-degree or 1000km average of 850mb vorticity.
+    #   Later: Add 850mb vort to args_div
+    #           Add 1x10-4 contour of vort_850 to plot.
+    #           Adjust contour thickness by max amount.
+    #           Show min sfc pressure location inside vort_850 contour.
+    #           Figure something out for Highs
+    ####
+
 
 
 
@@ -859,7 +880,7 @@ def get_bounds(colorbar_maxes, wspd, GEOspd, aGEOspd, aGEO_along_spddir, aGEO_pe
 ########################################################################
 # Make a scatter plots revealing how divergence data is being altered. # 
 ########################################################################
-def diagnostic_scatter_plot(level,args_div,args_map,args_uv):
+def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
 
     # How long will it take to make the plots?
     start_time = dt.now()
@@ -1568,7 +1589,7 @@ def get_max_colorbar(loc):
 # Script that controls making of images.     #
 # This accesses a number of above functions. #
 ##############################################
-def make_images(ds,date,fhr,levels,colorbar_maxes,
+def make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,
                 plots,num_passes,spacing,barb_quiver,
                 plot_hghts,red_on_map,big_start_time):
 
@@ -1626,7 +1647,7 @@ def make_images(ds,date,fhr,levels,colorbar_maxes,
             colorbar_maxes = get_max_colorbar(location)
 
             # Start the program from the beginning.
-            make_images(ds,date,fhr,levels,colorbar_maxes,plots,num_passes,spacing,barb_quiver,red_on_map,big_start_time)
+            make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,red_on_map,big_start_time)
 
             # Don't do steps below. They've already occurred.
             break
@@ -1640,13 +1661,13 @@ def make_images(ds,date,fhr,levels,colorbar_maxes,
 
         # Make scatter plot of the divergence components.
         print("\nMAKING SCATTER PLOT")
-        diagnostic_scatter_plot(level,args_div,args_map,args_uv)
+        diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv)
 
 
         # Plot the maps.
         print("\nMAKING MAPS")
-        if level==200:
-            # Plot all map types for 200mb plots.
+        if level==focus_level:
+            # Plot all map types for pressure level to focus on.
             for i,plot in enumerate(plots):
                 print(f"\n--> Plotting #{i}: {plot['name']}")
                 all_args = (args_map,args_uv,args_spd,args_div,date)
@@ -1665,7 +1686,7 @@ def make_images(ds,date,fhr,levels,colorbar_maxes,
                     }
                 plot_the_map(*all_args,**kwargs)
         else:
-            # Only plot what will be used for non-200mb plots.
+            # Only plot what will be used for plots at other pressure levels.
             i = 0
             plot = plots[-1]
             #for i,plot in enumerate(plots[-1]):
@@ -1793,10 +1814,10 @@ def tweet_images(date,fhr,send_tweet):
 
     # First tweet.
     text = f"GFS Forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}\n\n- forecasted wind\n- geostrophic wind\n- ageostrophic wind\n- divergence.\n\n{fhr}-hour forecast\nData from {date:%A, %H UTC %-d %B %Y}\n"
-    images = [f"./200/200_{fhr}_real.png",
-                f"./200/200_{fhr}_geo.png",
-                f"./200/200_{fhr}_ageo.png",
-                f"./200/200_{fhr}_ageo_div.png"]
+    images = [f"./{focus_level}/{focus_level}_{fhr}_real.png",
+                f"./{focus_level}/{focus_level}_{fhr}_geo.png",
+                f"./{focus_level}/{focus_level}_{fhr}_ageo.png",
+                f"./{focus_level}/{focus_level}_{fhr}_ageo_div.png"]
     tweet(text,images,send_tweet,reply)
 
     time.sleep(5)
@@ -1807,18 +1828,18 @@ def tweet_images(date,fhr,send_tweet):
 
 
     # Second tweet
-    text = f"Supergeostrophic wind and divergence\nAgeostrophic wind along the streamline.\n\n{fhr}-hour GFS 200-hPa forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
-    images = [f"./200/200_{fhr}_ageo_along.png",
-                f"./200/200_{fhr}_ageo_along_div.png"]
+    text = f"Supergeostrophic wind and divergence\nAgeostrophic wind along the streamline.\n\n{fhr}-hour GFS {focus_level}-hPa forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
+    images = [f"./{focus_level}/{focus_level}_{fhr}_ageo_along.png",
+                f"./{focus_level}/{focus_level}_{fhr}_ageo_along_div.png"]
     tweet(text,images,send_tweet,reply)
 
     time.sleep(5)
 
 
     # Third tweet
-    text = f"Four Quadrant Model wind and divergence\nAgeostrophic wind perpendicular to the streamline.\n\n{fhr}-hour GFS 200-hPa forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
-    images = [f"./200/200_{fhr}_ageo_perp.png",
-                f"./200/200_{fhr}_ageo_perp_div.png"]
+    text = f"Four Quadrant Model wind and divergence\nAgeostrophic wind perpendicular to the streamline.\n\n{fhr}-hour GFS {focus_level}-hPa forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
+    images = [f"./{focus_level}/{focus_level}_{fhr}_ageo_perp.png",
+                f"./{focus_level}/{focus_level}_{fhr}_ageo_perp_div.png"]
     tweet(text,images,send_tweet,reply)
 
     time.sleep(5)
@@ -1836,8 +1857,8 @@ def tweet_images(date,fhr,send_tweet):
 
 
     # Fifth tweet
-    text = f"Looking ahead..."
-    images = f"./200/200_looking_ahead.gif"
+    text = f"Looking ahead 48 hours..."
+    images = f"./{focus_level}/{focus_level}_looking_ahead.gif"
     tweet(text,images,send_tweet,reply)
 
 
@@ -1946,15 +1967,15 @@ colorbar_maxes = get_max_colorbar(location)
 # let's do the calculations and create the plots.       #
 #########################################################
 for level in levels:
-    if level==200:
+    if level==focus_level:
         use_levels = [level]
-        # Calculate all forecast hours at 200 hPa level.
+        # Calculate all forecast hours at pressure of focus level.
         for fhr in fhr_list:
-            make_images(ds,date,fhr,use_levels,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
+            make_images(ds,date,fhr,use_levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
     else:
         # Use only fhr_base for other pressure levels.
         use_levels = [level]
-        make_images(ds,date,fhr_base,use_levels,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
+        make_images(ds,date,fhr_base,use_levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
 
 
 
@@ -1964,7 +1985,7 @@ for level in levels:
 print(f"MAKING ANIMATIONS - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
 # Make animations from the maps you created.
 for level in levels:
-    if level==200:
+    if level==focus_level:
         true_false = make_animation(level,fhr_list)
 
 
