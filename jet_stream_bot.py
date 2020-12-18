@@ -120,7 +120,7 @@ if not use_smooth: replace = False
 red_on_map = False
 
 # Send tweet, or no?
-send_tweet = False
+send_tweet = True
 
 # What forecast hour do you want to plot?
 if forecast: fhr_list = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48] #,54,60,66,72,78,84,90,96]
