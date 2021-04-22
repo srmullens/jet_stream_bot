@@ -353,11 +353,6 @@ def tweet(text, image, send_tweet, reply):
         access_token_secret = os.environ.get('access_token_secret')
         """
 
-        consumer_key = 'PBAAvdU44v2xAN93je8w9YDwb'
-        consumer_secret = '65rHGBKOBGCSJr0t8NBy7wQ92dQAS5jYlhSd5hXhmNmyB3jSvr'
-        access_token = '1257385501478322181-7tcOOd2JJTVlTX40QcBGvEqtcfKyOR'
-        access_token_secret = 'poZAMuSOZ9sEtvoR06RoHfYTSxWHmvNrHypETPr2vwehv'
-
         print('  --> Tweeting...')
         twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
 
