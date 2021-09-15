@@ -32,7 +32,7 @@ jobs:
         # This needs to be installed via apt-get...
         sudo apt-get install libproj-dev
         # ... but most everything else can come via conda-forge.
-        conda install -c conda-forge wheel numpy xarray netcdf4 pillow matplotlib cartopy=0.17 twython metpy=0.10
+        conda install -c conda-forge wheel numpy xarray netcdf4 pillow==8.2.0 matplotlib cartopy=0.17 twython metpy=0.10
         
     - name: Run code
       shell: bash
