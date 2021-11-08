@@ -635,7 +635,7 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     lat, lon = xr.broadcast(y, x)
 
     # Use lats and lons to get change in x and y in meters.
-    dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat, initstring=data_crs.proj4_init)
+    dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat)
 
     # Let MetPy calculate the geostrophic and ageostrophic wind components.
     uGEO, vGEO = mpcalc.geostrophic_wind(use_hght, dx=dx, dy=dy, x_dim=-1, y_dim=-2)
