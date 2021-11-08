@@ -16,7 +16,6 @@ import copy
 
 import metpy.calc as mpcalc
 from metpy.units import units
-from metpy.future import ageostrophic_wind
 import numpy as np
 import xarray as xr
 
