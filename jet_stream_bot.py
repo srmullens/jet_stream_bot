@@ -638,15 +638,22 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     # Use lats and lons to get change in x and y in meters.
     dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat, initstring=data_crs.proj4_init)
 
-    # Let MetPy calculate the Coriolis parameter.
-    f = mpcalc.coriolis_parameter(lat)
-
     # Let MetPy calculate the geostrophic and ageostrophic wind components.
-    uGEO, vGEO = mpcalc.geostrophic_wind(use_hght, f, dx, dy, dim_order='yx')
-    uaGEO, vaGEO = ageostrophic_wind(use_hght, uwind, vwind, f, dx, dy, dim_order='yx')
+    uGEO, vGEO = mpcalc.geostrophic_wind(use_hght, dx=dx, dy=dy, x_dim=-1, y_dim=-2)
+    uaGEO, vaGEO = mpcalc.ageostrophic_wind(use_hght, uwind, vwind, dx=dx, dy=dy, x_dim=-1, y_dim=-2)
+
+    # Convert from xarray to numpy
+    uwind = uwind.metpy.unit_array
+    vwind = vwind.metpy.unit_array
+    uwind_850 = uwind_850.metpy.unit_array
+    vwind_850 = vwind_850.metpy.unit_array
+    uGEO = uGEO.metpy.unit_array
+    vGEO = vGEO.metpy.unit_array
+    uaGEO = uaGEO.metpy.unit_array
+    vaGEO = vaGEO.metpy.unit_array
 
     # Let MetPy calculate the vertical component of the relative vorticity at 850mb.
-    vort_850 = mpcalc.vorticity(uwind_850, vwind_850, dx, dy)
+    vort_850 = mpcalc.vorticity(uwind_850, vwind_850, dx=dx, dy=dy)
 
 
     ####
@@ -724,16 +731,16 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     ####
 
     # While we're here, calculate wind, GEO, aGEO divergences
-    wind_divergence = mpcalc.divergence(uwind,vwind,dx,dy)
-    GEO_divergence = mpcalc.divergence(uGEO,vGEO,dx,dy)
-    aGEO_divergence = mpcalc.divergence(uaGEO,vaGEO,dx,dy)
+    wind_divergence = mpcalc.divergence(uwind,vwind,dx=dx,dy=dy)
+    GEO_divergence = mpcalc.divergence(uGEO,vGEO,dx=dx,dy=dy)
+    aGEO_divergence = mpcalc.divergence(uaGEO,vaGEO,dx=dx,dy=dy)
 
     # Calculate the divergence of the aGEO components along and perpendicular
     # to the GEO wind.
     #   aGEO wind along/against GEO wind is super- and sub-geostrophic wind.
     #   aGEO wind across GEO wind is 4-quadrant model of jet streaks.
-    aGEO_along_divergence = mpcalc.divergence(aGEO_along_u,aGEO_along_v,dx,dy)
-    aGEO_perp_divergence  = mpcalc.divergence(aGEO_perp_u,aGEO_perp_v,dx,dy)
+    aGEO_along_divergence = mpcalc.divergence(aGEO_along_u,aGEO_along_v,dx=dx,dy=dy)
+    aGEO_perp_divergence  = mpcalc.divergence(aGEO_perp_u,aGEO_perp_v,dx=dx,dy=dy)
 
 
 
