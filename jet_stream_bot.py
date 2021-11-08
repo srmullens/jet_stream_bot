@@ -1001,6 +1001,10 @@ def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
     ax2.set_xlabel('wind speed (knot)')
     ax2.set_ylabel('height')
     ax2.set_xlim(left=0) #,right=60)
+
+    print(smooth_hght)
+    print(np.min(smooth_hght.magnitude)-50,np.min(smooth_hght.magnitude)-50)
+
     ax2.set_ylim(bottom=np.min(smooth_hght.magnitude)-50,top=np.max(smooth_hght.magnitude)+50)
     ax2.axvline(x=0)
     ax2.set(adjustable='box')
