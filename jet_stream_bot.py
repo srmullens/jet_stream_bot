@@ -358,31 +358,38 @@ def tweet(text, image, send_tweet, reply):
         # Tweet new status.
         response_list=()
         if not reply:
+            print('  --> Tweeting... not reply')
             # Assemble images
             if isinstance(image,list):
+                print('  --> Tweeting... not reply, img list')
                 for img in image:
                     response = twitter.upload_media(media=open(img, 'rb'))
                     response_list = (*response_list, response['media_id'])
             elif isinstance(image,str) and image[:-3]=='gif':
+                print('  --> Tweeting... not reply, img gif')
                 response = twitter.upload_video(media = open(img, 'rb'),
                                                 media_type = 'image/gif',
                                                 media_category = 'tweet_gif')
                 print(response['media_id'])
                 response_list = (*response_list, response['media_id'])
             elif isinstance(image,str) and image[-3:] in ['png','jpg']:
+                print('  --> Tweeting... not reply, img png/jpg')
                 response = twitter.upload_media(media=open(img, 'rb'))
                 response_list = (*response_list, response['media_id'])
 
             # Send the tweet
+            print('  --> Tweeting... not reply, send tweet')
             twitter.update_status(status=text, media_ids=list(response_list))
 
 
         # Tweet a reply.
         elif reply:
+            print('  --> Tweeting... is reply')
             # ...Get most recent tweet's ID from the timeline...
             timeline = twitter.get_user_timeline(screen_name='jetstreambot',count=5)
             tweet_list = []
             for tweet in timeline:
+                print('  --> Tweeting... not reply, get prev tweet id')
                 created = dt.strptime(tweet['created_at'],'%a %b %d %H:%M:%S %z %Y')
                 tweet_list.append({'created_at':created,'id':tweet['id']})
                 tweet_list = sorted(tweet_list, key = lambda i: i['created_at'],reverse=True)
@@ -390,19 +397,23 @@ def tweet(text, image, send_tweet, reply):
 
             # Assemble images
             if isinstance(image,list):
+                print('  --> Tweeting... is reply, image list')
                 for img in image:
                     response = twitter.upload_media(media=open(img, 'rb'))
                     response_list = (*response_list, response['media_id'])
             elif isinstance(image,str) and image[-3:]=='gif':
+                print('  --> Tweeting... is reply, image gif')
                 response = twitter.upload_video(media = open(image, 'rb'),
                                                 media_type = 'image/gif',
                                                 media_category = 'tweet_gif')
                 response_list = (*response_list, response['media_id'])
             elif isinstance(image,str) and image[-3:] in ['png','jpg']:
+                print('  --> Tweeting... is reply, img png/jpg')
                 response = twitter.upload_media(media=open(image, 'rb'))
                 response_list = (*response_list, response['media_id'])
 
             # Send the tweet.
+            print('  --> Tweeting... is reply, send tweet')
             twitter.update_status(status=text,
                                 media_ids=list(response_list),
                                 in_reply_to_status_id=tweet_id,
@@ -411,6 +422,7 @@ def tweet(text, image, send_tweet, reply):
 
     # Show where the tweet would be sent.
     else:
+        print('  --> Tweeting... TEST')
         if not reply: print('    --> TEST Original tweet')
         elif reply: print('    --> TEST Reply to tweet')
 
