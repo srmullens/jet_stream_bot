@@ -1528,7 +1528,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
 
 
     # Add attribution label.
-    text = '@jet_stream_bot'
+    text = '@jetstreambot'
     kwargs = {'weight':'bold',
                 'bbox':dict(boxstyle="round",ec='white',fc="white",alpha=0.75),
                 'va':'bottom',
