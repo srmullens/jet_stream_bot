@@ -1774,7 +1774,8 @@ def make_animation(level,fhr_list):
             frames.append(new_frame.resize((682,454)))
 
             # Make the last image in each of the four parts last longer.
-            if i==0 and j in [16,33,50,67]:
+            #if i==0 and j in [16,33,50,67]:
+            if i==0 and j in [24,49,74,99]:
                 for x in range(5): frames.append(new_frame.resize((682,454)))
 
         # Save GIF
@@ -1874,7 +1875,8 @@ def tweet_images(date,fhr,send_tweet):
 
 
     # Fifth tweet
-    text = f"Looking ahead 48 hours..."
+    #text = f"Looking ahead 48 hours..."
+    text = f"Looking ahead 96 hours..."
     images = f"./{focus_level}/{focus_level}_looking_ahead.gif"
     tweet(text,images,send_tweet,reply)
 
