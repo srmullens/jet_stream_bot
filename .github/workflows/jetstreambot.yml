@@ -11,7 +11,7 @@ jobs:
     steps:
     
     # Checkout allows us to use the files in this repository.
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Setup Miniconda
       # This sets up conda... 
       # ...auto-creates a test environment (super annoying)...
