@@ -26,14 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         # Change source to use conda commands
-        ls -l /usr/share/
-        echo "MINICONDA 3"
-        ls -l /usr/share/miniconda/
-        echo "ETC"
-        ls -l /usr/share/miniconda/etc/
-        echo "PROFILE.D"
-        ls -l /usr/share/miniconda/etc/profile.d/
-        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        source /usr/share/miniconda/etc/profile.d/conda.sh
         # Change environment to where all the dependencies are installed anyway.
         conda activate test
         # This needs to be installed via apt-get...
