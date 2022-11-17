@@ -26,6 +26,10 @@ jobs:
     - name: Install dependencies
       run: |
         # Change source to use conda commands
+        ls -l /usr/share/
+        echo "MINICONDA 3"
+        ls -l /usr/share/miniconda3/
+        echo "ETC"
         ls -l /usr/share/miniconda3/etc/
         ls -l /usr/share/miniconda3/etc/profile.d/
         source /usr/share/miniconda3/etc/profile.d/conda.sh
