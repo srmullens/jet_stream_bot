@@ -32,8 +32,8 @@ from matplotlib.axes import Axes
 from cartopy.mpl.geoaxes import GeoAxes
 GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
-import PIL
-from twython import Twython
+#import PIL
+#from twython import Twython
 
 
 # IDEA: Can I find the 1x1 degree average of 850mb vorticity,
@@ -119,7 +119,7 @@ if not use_smooth: replace = False
 red_on_map = False
 
 # Send tweet, or no?
-send_tweet = True
+send_tweet = False
 
 # What forecast hour do you want to plot?
 if forecast: fhr_list = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,54,60,66,72,78,84,90,96]
@@ -2001,19 +2001,19 @@ for level in levels:
 ###########################################
 # With the images made, make animated GIF #
 ###########################################
-print(f"MAKING ANIMATIONS - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
+#print(f"MAKING ANIMATIONS - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
 # Make animations from the maps you created.
-for level in levels:
-    if level==focus_level:
-        true_false = make_animation(level,fhr_list)
+#for level in levels:
+#    if level==focus_level:
+#        true_false = make_animation(level,fhr_list)
 
 
 
 ###############################################
 # With all the plots made, let's tweet stuff. #
 ###############################################
-print(f"TWEETING - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
-tweet_images(date,fhr_base,send_tweet)
+#print(f"TWEETING - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
+#tweet_images(date,fhr_base,send_tweet)
 
 
 
