@@ -26,9 +26,9 @@ jobs:
     - name: Install dependencies
       run: |
         # Change source to use conda commands
-        source /usr/share/miniconda/etc/profile.d/conda.sh
+        #source /usr/share/miniconda/etc/profile.d/conda.sh
         # Change environment to where all the dependencies are installed anyway.
-        conda activate test
+        #conda activate test
         # This needs to be installed via apt-get...
         sudo apt-get install proj-bin  #libproj-dev
         # ... but most everything else can come via conda-forge.
@@ -43,11 +43,11 @@ jobs:
         access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
       run: |
         # Change source to use conda commands
-        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        #source /usr/share/miniconda3/etc/profile.d/conda.sh
         # Change environment to where all the dependencies were installed.
-        conda activate test
+        #conda activate test
         # Run the code!
-        python3 jet_stream_bot.py
+        python jet_stream_bot.py
         
     # We created some files. But we need to commit them to the repository.
     - name: Commit files
