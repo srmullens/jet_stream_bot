@@ -23,7 +23,7 @@ jobs:
         activate-environment: test
         python-version: 3.7
     
-    - name: Install dependencies
+    - name: Install dependencies & Run code
       run: |
         # Change source to use conda commands
         #source /usr/share/miniconda/etc/profile.d/conda.sh
@@ -33,21 +33,23 @@ jobs:
         sudo apt-get install proj-bin  #libproj-dev
         # ... but most everything else can come via conda-forge.
         conda install -c conda-forge wheel==0.37.0 numpy==1.21.1 xarray==0.20.1 netcdf4==1.5.7 matplotlib=3.4 cartopy=0.17 metpy=1.1
+        # Run the code!
+        python jet_stream_bot.py
         
-    - name: Run code
-      shell: bash
-      env:
-        consumer_key: ${{ secrets.TWITTER_API_KEY }}
-        consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
-        access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-        access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
-      run: |
+    - #name: Run code
+      #shell: bash
+      #env:
+      #  consumer_key: ${{ secrets.TWITTER_API_KEY }}
+      #  consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
+      #  access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+      #  access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      #run: |
         # Change source to use conda commands
         #source /usr/share/miniconda3/etc/profile.d/conda.sh
         # Change environment to where all the dependencies were installed.
-        conda activate test
+      #  conda activate test
         # Run the code!
-        python jet_stream_bot.py
+      #  python jet_stream_bot.py
         
     # We created some files. But we need to commit them to the repository.
     - name: Commit files
