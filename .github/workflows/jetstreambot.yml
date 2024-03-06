@@ -22,7 +22,7 @@ jobs:
         # miniconda-version: latest
         # activate-environment: test
         auto-activate-base: true
-        activate-environment: ""
+        activate-environment: true
         python-version: 3.7
 
     - name: Conda info
