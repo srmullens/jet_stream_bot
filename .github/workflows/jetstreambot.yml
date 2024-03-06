@@ -36,7 +36,7 @@ jobs:
         # Run the code!
         python jet_stream_bot.py
         
-    - #name: Run code
+    #- name: Run code
       #shell: bash
       #env:
       #  consumer_key: ${{ secrets.TWITTER_API_KEY }}
