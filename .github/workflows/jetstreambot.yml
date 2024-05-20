@@ -30,20 +30,23 @@ jobs:
       run: conda info
         
     - name: Install apt-get dependencies
+      shell: bash -el {0}
       run: |
         # Change source to use conda commands
         #source /usr/share/miniconda/etc/profile.d/conda.sh
         # Change environment to where all the dependencies are installed anyway.
-        #conda activate test
+        # conda activate test
         # This needs to be installed via apt-get...
-        sudo apt-get install proj-bin  #libproj-dev
+        sudo apt-get install proj-bin  libproj-dev
 
     - name: Install conda dependencies
+      shell: bash -el {0}
       run: |
         # ... but most everything else can come via conda-forge.
         conda install -c conda-forge wheel==0.37.0 numpy==1.21.1 xarray==0.20.1 netcdf4==1.5.7 matplotlib=3.4 cartopy=0.17 metpy=1.1
     
     - name: Run code
+      shell: bash -el {0}
       run: |
         # Run the code!
         python jet_stream_bot.py
