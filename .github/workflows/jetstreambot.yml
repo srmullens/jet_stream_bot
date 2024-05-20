@@ -68,6 +68,7 @@ jobs:
         
     # We created some files. But we need to commit them to the repository.
     - name: Commit files
+      shell: bash -el {0}
       run: |
           git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
