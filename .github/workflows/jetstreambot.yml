@@ -19,10 +19,9 @@ jobs:
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
-        # miniconda-version: latest
+        miniconda-version: latest
         # activate-environment: test
-        auto-activate-base: true
-        activate-environment: true
+        # activate-environment: true
         python-version: 3.7
 
     - name: Conda info
@@ -33,7 +32,7 @@ jobs:
       shell: bash -el {0}
       run: |
         # Change source to use conda commands
-        #source /usr/share/miniconda/etc/profile.d/conda.sh
+        # source /usr/share/miniconda/etc/profile.d/conda.sh
         # Change environment to where all the dependencies are installed anyway.
         # conda activate test
         # This needs to be installed via apt-get...
