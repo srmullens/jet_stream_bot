@@ -83,7 +83,7 @@ plots = [
 # Settings for calculations and plotting. #
 ###########################################
 # List of pressure levels to plot.
-levels = [200, 250, 300, 400]
+levels = [200, 250, 300, 400, 500, 700, 850]
 #levels = [200]
 focus_level = 250
 
@@ -1704,13 +1704,13 @@ def make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,
                 plot_the_map(*all_args,**kwargs)
         else:
             # Only plot what will be used for plots at other pressure levels.
-            i = 0
-            plot = plots[-1]
-            #for i,plot in enumerate(plots[-1]):
+            #i = 0
+            #plot = plots[-1]
+            for i,plot in enumerate(plots[-1]):
 
-            print(f"\n--> Plotting #{i}: {plot['name']}")
-            all_args = (args_map,args_uv,args_spd,args_div,date)
-            kwargs = {'contour_wind':plot['contour_wind'],
+                print(f"\n--> Plotting #{i}: {plot['name']}")
+                all_args = (args_map,args_uv,args_spd,args_div,date)
+                kwargs = {'contour_wind':plot['contour_wind'],
                         'plot_barbs':plot['plot_barbs'],
                         'grid_fill':plot['grid_fill'],
                         'name':plot['name'],
@@ -1722,8 +1722,8 @@ def make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,
                         'plot_hghts':plot_hghts,
                         'loc':location,
                         'red_on_map':red_on_map
-                }
-            plot_the_map(*all_args,**kwargs)
+                    }
+                plot_the_map(*all_args,**kwargs)
 
 
 
