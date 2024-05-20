@@ -1706,7 +1706,7 @@ def make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,
             # Only plot what will be used for plots at other pressure levels.
             #i = 0
             #plot = plots[-1]
-            for i,plot in enumerate(plots[-1]):
+            for i,plot in enumerate(plots):
 
                 print(f"\n--> Plotting #{i}: {plot['name']}")
                 all_args = (args_map,args_uv,args_spd,args_div,date)
