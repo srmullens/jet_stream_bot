@@ -1994,7 +1994,9 @@ for level in levels:
     else:
         # Use only fhr_base for other pressure levels.
         use_levels = [level]
-        make_images(ds,date,fhr_base,use_levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
+        # Calculate all forecast hours at pressure of focus level.
+        for fhr in fhr_list:
+            make_images(ds,date,fhr_base,use_levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
 
 
 
