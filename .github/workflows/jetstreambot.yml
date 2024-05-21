@@ -1,9 +1,9 @@
 name: Jet Stream Bot
 
 on:
-  push
-  #schedule:
-  #  - cron: '50 3,9,15,21 * * *'
+  #push
+  schedule:
+    - cron: '50 3,9,15,21 * * *'
 
 jobs:
   build:
@@ -20,8 +20,6 @@ jobs:
       with:
         auto-update-conda: true
         miniconda-version: latest
-        # activate-environment: test
-        # activate-environment: true
         python-version: 3.7
 
     - name: Conda info
@@ -31,10 +29,6 @@ jobs:
     - name: Install apt-get dependencies
       shell: bash -el {0}
       run: |
-        # Change source to use conda commands
-        # source /usr/share/miniconda/etc/profile.d/conda.sh
-        # Change environment to where all the dependencies are installed anyway.
-        # conda activate test
         # This needs to be installed via apt-get...
         sudo apt-get install proj-bin  libproj-dev
 
@@ -50,21 +44,6 @@ jobs:
         # Run the code!
         python jet_stream_bot.py
         
-    #- name: Run code
-      #shell: bash
-      #env:
-      #  consumer_key: ${{ secrets.TWITTER_API_KEY }}
-      #  consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
-      #  access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-      #  access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
-      #run: |
-        # Change source to use conda commands
-        #source /usr/share/miniconda3/etc/profile.d/conda.sh
-        # Change environment to where all the dependencies were installed.
-      #  conda activate test
-        # Run the code!
-      #  python jet_stream_bot.py
-        
     # We created some files. But we need to commit them to the repository.
     - name: Commit files
       shell: bash -el {0}
@@ -73,7 +52,6 @@ jobs:
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .        # Adds file to commit
           git add --all    # Adds only the file, not the folder where Python & conda was set up.
-          # git commit -m "Add changes"
           git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
           
     # Now push committed changes to the repo.
