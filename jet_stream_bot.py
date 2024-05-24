@@ -9,8 +9,8 @@
 #                                                                      #
 ########################################################################
 
-from datetime import datetime as dt, timedelta
-import time
+from datetime import datetime as dt, timedelta, timezone
+#import time
 import os
 import copy
 
@@ -18,13 +18,17 @@ import metpy.calc as mpcalc
 from metpy.units import units
 import numpy as np
 import xarray as xr
+import scipy.ndimage as ndimage
+from shapely.geometry import Point,Polygon,LineString
+import shapely.vectorized
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
-from matplotlib import cm
+from matplotlib import colormaps as cm
 from matplotlib.colors import ListedColormap
 import matplotlib.ticker as ticker
+import matplotlib.lines as mlines
 
 # This is needed because of some error with cartopy and matplotlib axes 
 # See also [Axes issue](https://github.com/SciTools/cartopy/issues/1120)
@@ -32,12 +36,9 @@ from matplotlib.axes import Axes
 from cartopy.mpl.geoaxes import GeoAxes
 GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
-#import PIL
-#from twython import Twython
-
 
 # IDEA: Can I find the 1x1 degree average of 850mb vorticity,
-# contour the 1x10^5 (or whatever the exponent is) line,
+# contour the 1x10^-5 (or whatever the exponent is) line,
 # but weight the thickness of the line by the maximum
 # average vorticity inside the contour? The higher the vorticity,
 # the stronger the storm, the bolder the line.
@@ -54,18 +55,22 @@ GeoAxes._pcolormesh_patched = Axes.pcolormesh
 ####################
 # MAP COMBINATIONS #
 ####################
-# Speeds: real, geo, ageo
-# Winds: real, geo, ageo, ageo_along, ageo_perp
-# Speeds: real, geo, ageo, ageo_along, ageo_perp
+# For each plot:
+#   name            What should the plot title be?
+#   contour_wind    What isotachs should be contoured?      real, geo, or ageo
+#   plot_barbs      What wind barbs should be plotted?      real, geo, ageo, ageo_along, or ageo_perp 
+#   grid_fill       What wind magnitude should be colored?  real, geo, ageo, ageo_along, ageo_perp
+# The contours give context, but the barbs and color fill are the main point of the plot.
 
-# 1: real, real, real
-# 2: geo, geo, geo
-# 3: ageo, ageo, ageo
-# 4: real, ageo_along, ageo_along
-# 5: real, ageo_perp, ageo_perp
-# 6: real, ageo_along, ageo_along_div
-# 7: real, ageo_perp, ageo_perp_div
-# 8: real, ageo, ageo_div
+#    contour,   barbs,          color fill
+# 1: real,      real,           real
+# 2: geo,       geo,            geo
+# 3: ageo,      ageo,           ageo
+# 4: real,      ageo_along,     ageo_along
+# 5: real,      ageo_perp,      ageo_perp
+# 6: real,      ageo_along,     ageo_along_div
+# 7: real,      ageo_perp,      ageo_perp_div
+# 8: real,      ageo,           ageo_div
 
 plots = [
         {'name':'Wind','contour_wind':'real','plot_barbs':'real','grid_fill':'real'},
@@ -73,9 +78,9 @@ plots = [
         {'name':'Ageostrophic wind','contour_wind':'ageo','plot_barbs':'ageo','grid_fill':'ageo'},
         {'name':'Supergeostrophic Wind','contour_wind':'real','plot_barbs':'ageo_along','grid_fill':'ageo_along'},
         {'name':'Perpendicular Ageostrophic Wind','contour_wind':'real','plot_barbs':'ageo_perp','grid_fill':'ageo_perp'},
-        {'name':'Divergence and Supergeostrophic Wind','contour_wind':'real','plot_barbs':'ageo_along','grid_fill':'ageo_along_div'},
-        {'name':'Divergence and Perpendicular Ageostrophic Wind','contour_wind':'real','plot_barbs':'ageo_perp','grid_fill':'ageo_perp_div'},
-        {'name':'Divergence and Wind','contour_wind':'real','plot_barbs':'real','grid_fill':'ageo_div'}
+        {'name':'Supergeostrophic Wind Divergence','contour_wind':'real','plot_barbs':'ageo_along','grid_fill':'ageo_along_div'},
+        {'name':'Perpendicular Ageostrophic Wind Divergence','contour_wind':'real','plot_barbs':'ageo_perp','grid_fill':'ageo_perp_div'},
+        {'name':'Wind and Divergence','contour_wind':'real','plot_barbs':'real','grid_fill':'ageo_div'}
        ]
 
 
@@ -85,11 +90,10 @@ plots = [
 # List of pressure levels to plot.
 levels = [200, 250, 300, 400, 500, 700, 850]
 #levels = [200]
-focus_level = 250
 
 # Do you want height contours?
 plot_hghts = True
-plot_850_hghts = False
+plot_850 = True
 
 # smoothing: number of times (passes) data is smoothed
 num_passes = 40
@@ -104,27 +108,21 @@ barb_quiver = 'barb'
 #   'CONUS', 'Tropics', 'Carrib'
 location = 'CONUS'
 
-# Do you want to replace max colorbar values if
-# higher wind speed or divergence is found?
-replace = False
-
 # Use forecast data? False uses analysis data.
 forecast = True
-
-# Use smoothed data or raw data?
-use_smooth = True
-if not use_smooth: replace = False
-
-# Plot red where divergence values have been changed?
-red_on_map = False
-
-# Send tweet, or no?
-send_tweet = False
 
 # What forecast hour do you want to plot?
 if forecast: fhr_list = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,54,60,66,72,78,84,90,96]
 else: fhr_list = [0]
 
+# Use smoothed data or raw data?
+use_smooth = True
+
+# Plot red where divergence values have been changed?
+red_on_map = False
+
+# Make sure we know what we're looking for and the data types are right.
+look_for_problems = False
 
 
 ######################################################################
@@ -134,7 +132,7 @@ else: fhr_list = [0]
 #   ********************************************************************************
 #   * Organization:                                                                *
 #   * There's the MAIN script, which is at the bottom.                             *
-#   * There are four PRIMARY functions, accessed by the main script.               *
+#   * There are two PRIMARY functions, accessed by the main script.                *
 #   * There are SECONDARY functions, mostly accessed by the primary make_images(). *
 #   * There are TERTIARY functions, which support the secondary functions.         *
 #   ********************************************************************************
@@ -148,12 +146,15 @@ else: fhr_list = [0]
 #                                                      # 
 ########################################################
 
-# The divergence components suffer from artifacts where the wind speed
-# is low but turns sharply. The turning of the wind fights with the
-# Cartesian coordinate system. This function reduces the magnitude of
-# the divergence values there, essentially removing those artifacts.
 def adjust_div_values(lat,lon,smooth_hght,aGEO_along_divergence,aGEO_perp_divergence,grid_fill):
     """
+    The divergence components suffer from artifacts where the wind speed
+    is low but turns sharply. The turning of the wind fights with the
+    Cartesian coordinate system. The divergence components along and
+    perpendicular to the height gradient are way too large. This function
+    artificially reduces the magnitude of the divergence values there,
+    essentially removing those artifacts.
+
     Function parameters:
         lat = latitude array
         lon = longitude array
@@ -165,17 +166,15 @@ def adjust_div_values(lat,lon,smooth_hght,aGEO_along_divergence,aGEO_perp_diverg
 
     # Calculate the north-south derivative of the pressure surface height.
     dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat)
-    #hght_first = mpcalc.first_derivative(smooth_hght, delta=dy)
 
+    # Find the height gradients in the y and x direction, then combine them.
     hght_first_y = mpcalc.first_derivative(smooth_hght, delta=dy)
-    #hght_first = hght_first_y
-    #"""
     hght_first_x = mpcalc.first_derivative(smooth_hght, delta=dx, axis=1)
     hght_first_x = hght_first_x.flatten()
     hght_first_y = hght_first_y.flatten()
     hght_first = hght_first_y*hght_first_y + hght_first_x*hght_first_x
     hght_first = hght_first_y/np.abs(hght_first_y)*np.sqrt(hght_first)
-    #"""
+
     # Flatten the 2D arrays to 1D arrays.
     lon_flat = lon.values.flatten()
     lat_flat = lat.values.flatten()
@@ -210,7 +209,7 @@ def adjust_div_values(lat,lon,smooth_hght,aGEO_along_divergence,aGEO_perp_diverg
                     aGEO_stream_div[i]+= np.abs(aGEO_perp_div[i])
                     aGEO_perp_div[i]=0
 
-    print(f'adjust {len(count)} of {len(lon_flat)} points')
+    #print(f'adjust {len(count)} of {len(lon_flat)} points')
 
     # Convert 1D aGEO_stream_div back to 2D.
     if grid_fill in ['ageo_along_div']:
@@ -226,12 +225,12 @@ def adjust_div_values(lat,lon,smooth_hght,aGEO_along_divergence,aGEO_perp_diverg
 
 
 
-##############################################################
-# Find the maximum element everywhere in the grid of values. #
-# Given multiple wind values or multiple divergence values.  #
-##############################################################
 def max_arrays(*args):
     """
+    Find the maximum element everywhere in the grid of values
+    given multiple wind values or multiple divergence values.
+    This is used to adjust the color bar.
+
     Function parameters:
         args = several arrays. Can be any number.
     """
@@ -250,13 +249,12 @@ def max_arrays(*args):
 
 
 
-##################################################
-# Format the labels on the colorbar.             #
-# Used for divergence. Labels are whole numbers. #
-# Colorbar label will show they are all *10^-5.  #
-##################################################
 def fmt(x, pos):
     """
+    Format the labels on the colorbar.
+    Used for divergence. The labels are whole numbers.
+    The colorbar label will show they are all *10^-5.
+
     Function parameters:
         x = Number
         pos = Not sure. The ticker.FuncFormatter may need it.
@@ -282,11 +280,10 @@ def fmt(x, pos):
 
 
 
-##############################################
-# Take wind data for barb or quiver plotting #
-##############################################
 def mask_wind(U,V,wspd,min_speed,spacing):
     """
+    Mask wind speed values when below the min_speed threshold.
+
     Function parameters:
         U = east-west component of wind
         V = north-south component of wind
@@ -322,6 +319,139 @@ def mask_wind(U,V,wspd,min_speed,spacing):
 
 
 
+def average_over_degree_radius(data,deg,lats,lons):
+    """
+    Averaging a lat/lon grid by a specified radius in degrees (not kilometers)
+    Source: https://github.com/nmcdev/nmc_met_base/blob/master/nmc_met_base/grid.py
+
+    Args:
+        data ([type]): 2D variable to be area-averaged
+        deg ([type]): Degree radius to smooth over (e.g., 2 for 2 degrees)
+        lats ([type]): [description]
+        lons ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+
+    #Check if input data is an xarray dataarray
+    try:
+        _ = data.values
+        xr_coords = data.coords
+        use_xarray = 1
+    except:
+        use_xarray = 0
+
+    #Determine radius in gridpoint numbers
+    res = abs(lats[1] - lats[0])
+    try: res = float(res[0].values)
+    except: pass
+
+    #Perform area-averaging
+    radius = int(float(deg)/res)
+    kernel = np.zeros((2*radius+1, 2*radius+1))
+    y1,x1 = np.ogrid[-radius:radius+1, -radius:radius+1]
+    mask = x1**2 + y1**2 <= radius**2
+    kernel[mask] = 1
+    averaged_data = ndimage.generic_filter(data, np.average, footprint=kernel)
+
+    #Convert back to xarray dataarray, if specified
+    if use_xarray == 1:
+        data = xr.DataArray(averaged_data, coords=xr_coords)
+
+    #Return data
+    return data
+
+
+
+def max_value_in_polygon(data,polygon):
+    """
+    Go through data, mask everything outside the polygon.
+    Of the available data, what's the maximum value?
+
+    Source: https://github.com/regionmask/regionmask/blob/v0.12.1/regionmask/core/mask.py
+    """
+    # Get 1D lat & lon arrays from the xarray DataArray
+    lon = np.asarray(data.lon)
+    lat = np.asarray(data.lat)
+
+    # Create 2D grid from those lat & lon values.
+    lon,lat = np.meshgrid(lon, lat)
+    shape = lon.shape
+
+    # Create 1D arrays of lat & lon so it's a 1D list of all the points in the grid.
+    lon = lon.ravel()
+    lat = lat.ravel()
+
+    # add a tiny offset to get a consistent edge behaviour
+    lon = lon - 1 * 10**-8
+    lat = lat - 1 * 10**-10
+
+    # Determine which lat & lon points are inside the polygon.
+    mask_1D = shapely.vectorized.contains(polygon, lon, lat)
+
+    # Get 2D data from xarray, convert it to 1D numpy arrays, and apply the mask.
+    data_np = np.asarray(data.values)
+    data_1D = data.values.ravel()
+    data_1D = np.ma.array(data_1D, mask = mask_1D)
+    max_idx = data_1D.argmax()
+
+    # Return the location and magnitude of the maximum value of the remaining data.
+    return (lon[max_idx],lat[max_idx]),data_1D.max()
+    return xy,local_max_values
+
+
+
+def contour_to_shapely(contours):
+    """
+    Convert matplotlib collection of contours to shapely polygons.
+
+    contours - collection of contours. See example for how to get them.
+
+    Example:
+    import matplotlib.pyplot as plt
+    x = [1,2,3,4]
+    y = [1,2,3,4]
+    m = [[15,14,13,12],[14,12,10,8],[13,10,7,4],[12,8,4,0]]
+    contours = plt.contour(x,y,m)
+
+    Source:
+    https://gis.stackexchange.com/questions/99917/converting-matplotlib-contour-objects-to-shapely-objects
+    """
+    polygons = []
+
+    # Loop through all polygons that have the same intensity level
+    for contour_path in contours.get_paths():
+        # Create the polygon for this intensity level
+        # The first polygon in the path is the main one, the following ones are "holes"
+        for ncp,cp in enumerate(contour_path.to_polygons(closed_only=False)):
+            x = cp[:,0]
+            y = cp[:,1]
+
+            if x[0]==x[-1] and y[0]==y[-1]:
+                new_shape = Polygon([(i[0], i[1]) for i in zip(x,y)])
+            else:
+                new_shape = LineString([(i[0], i[1]) for i in zip(x,y)])
+
+            if ncp == 0:
+                polygons.append(new_shape)
+
+            else:
+                new_poly = True
+                # Does the polygon intersect any already saved polygons?
+                if new_shape.geom_type == 'Polygon':
+                    for i,p in enumerate(polygons):
+                        if p.geom_type=='Polygon' and p.intersects(new_shape):
+                            # If so, redefine the polygon with a hole.
+                            polygons[i] = p.difference(new_shape)
+                            new_poly = False
+
+                # If no, then save the new shape.
+                if new_poly:
+                    polygons.append(new_shape)
+
+    return polygons
+
 
 
 ######################################################
@@ -331,115 +461,15 @@ def mask_wind(U,V,wspd,min_speed,spacing):
 #                                                    # 
 ######################################################
 
-####################################
-# Send a tweet.                    #
-# Info sent here by tweet_images() #
-####################################
-def tweet(text, image, send_tweet, reply):
-    """
-    Function parameters:
-        text = tweet text. 280 characters or less.
-        image = string file path or list of files to attach
-        send_tweet = True/False flag. Send the tweet or not?
-        reply = True/False flag. Is tweet original or a reply?
-    """
-
-    if send_tweet:
-        
-        consumer_key = os.environ.get('consumer_key')
-        consumer_secret = os.environ.get('consumer_secret')
-        access_token = os.environ.get('access_token')
-        access_token_secret = os.environ.get('access_token_secret')
-        
-
-        print('  --> Tweeting...')
-        twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
-
-        # Tweet new status.
-        response_list=()
-        if not reply:
-            print('  --> Tweeting... not reply')
-            # Assemble images
-            if isinstance(image,list):
-                print('  --> Tweeting... not reply, img list')
-                for img in image:
-                    response = twitter.upload_media(media=open(img, 'rb'))
-                    response_list = (*response_list, response['media_id'])
-            elif isinstance(image,str) and image[:-3]=='gif':
-                print('  --> Tweeting... not reply, img gif')
-                response = twitter.upload_video(media = open(img, 'rb'),
-                                                media_type = 'image/gif',
-                                                media_category = 'tweet_gif')
-                print(response['media_id'])
-                response_list = (*response_list, response['media_id'])
-            elif isinstance(image,str) and image[-3:] in ['png','jpg']:
-                print('  --> Tweeting... not reply, img png/jpg')
-                response = twitter.upload_media(media=open(img, 'rb'))
-                response_list = (*response_list, response['media_id'])
-
-            # Send the tweet
-            print('  --> Tweeting... not reply, send tweet')
-            twitter.update_status(status=text, media_ids=list(response_list))
-
-
-        # Tweet a reply.
-        elif reply:
-            print('  --> Tweeting... is reply')
-            # ...Get most recent tweet's ID from the timeline...
-            timeline = twitter.get_user_timeline(screen_name='jetstreambot',count=5)
-            tweet_list = []
-            for tweet in timeline:
-                print('  --> Tweeting... not reply, get prev tweet id')
-                created = dt.strptime(tweet['created_at'],'%a %b %d %H:%M:%S %z %Y')
-                tweet_list.append({'created_at':created,'id':tweet['id']})
-                tweet_list = sorted(tweet_list, key = lambda i: i['created_at'],reverse=True)
-                tweet_id = tweet_list[0]['id']
-
-            # Assemble images
-            if isinstance(image,list):
-                print('  --> Tweeting... is reply, image list')
-                for img in image:
-                    response = twitter.upload_media(media=open(img, 'rb'))
-                    response_list = (*response_list, response['media_id'])
-            elif isinstance(image,str) and image[-3:]=='gif':
-                print('  --> Tweeting... is reply, image gif')
-                response = twitter.upload_video(media = open(image, 'rb'),
-                                                media_type = 'image/gif',
-                                                media_category = 'tweet_gif')
-                response_list = (*response_list, response['media_id'])
-            elif isinstance(image,str) and image[-3:] in ['png','jpg']:
-                print('  --> Tweeting... is reply, img png/jpg')
-                response = twitter.upload_media(media=open(image, 'rb'))
-                response_list = (*response_list, response['media_id'])
-
-            # Send the tweet.
-            print('  --> Tweeting... is reply, send tweet')
-            twitter.update_status(status=text,
-                                media_ids=list(response_list),
-                                in_reply_to_status_id=tweet_id,
-                                auto_populate_reply_metadata=True)
-
-
-    # Show where the tweet would be sent.
-    else:
-        print('  --> Tweeting... TEST')
-        if not reply: print('    --> TEST Original tweet')
-        elif reply: print('    --> TEST Reply to tweet')
-
-    print('  --> Tweeted.')
-
-
 
 #######################################
 # Functions accessed by make_images() #
 #######################################
 
-###########################################
-# Raise warnings if something won't work. #
-###########################################
 def problems(plots,level,num_passes,spacing,barb_quiver,plot_hghts):
-
     """
+    Raise warnings if something won't work.
+
     Function parameters:
         plots = list of plots to make.
         level = pressure level in millibars or hectopascals.
@@ -495,15 +525,12 @@ def problems(plots,level,num_passes,spacing,barb_quiver,plot_hghts):
 
 
 
-#################################################
-# Using the data, calculate the fields to plot. #
-#################################################
 def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, num_passes=40, loc='CONUS'):
-
-    # How long will it take to get the data?
-    start_time = dt.now()
-
     """
+    Get the height and wind data.
+    Calculate the ageostrophic and divergence components.
+    Prepare the lists for plotting.
+
     Function parameters:
         data = gathered data
         date = datetime object
@@ -516,6 +543,8 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
         loc = location to plot. 'CONUS', 'Tropics', 'Carrib'
     """
 
+    # How long will it take to get the data?
+    start_time = dt.now()
 
     ####
     # If date not provided, get date.
@@ -536,7 +565,7 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
 
     # If date is provided, use it.
     elif isinstance(date, dt):
-        print(f"--> Using given date: {date:%Y-%m-%d %H UTC}")
+        #print(f"--> Using given date: {date:%Y-%m-%d %H UTC}")
         date = date
 
     # If date is provided by isn't a datetime instance, raise warning.
@@ -557,10 +586,10 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
         # Get GFS data and subset to North America for Geopotential Height and Temperature
         ds = xr.open_dataset('https://thredds.ucar.edu/thredds/dodsC/grib/NCEP/GFS/Global_0p25deg_ana/'
                              f'GFS_Global_0p25deg_ana_{date:%Y%m%d}_{date:%H}00.grib2').metpy.parse_cf(['Geopotential_height_isobaric','u-component_of_wind_isobaric','v-component_of_wind_isobaric'])
-        print("--> Got data.")
+        #print("--> Got data.")
 
     else:
-        print("--> Already have data")
+        #print("--> Already have data")
         ds = data
 
 
@@ -607,6 +636,7 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
                 'lat':slice(50, 5),
                 'lon':slice(360-120, 360-45)
         }
+
 
     # Get geopotential height data for the specified pressure level.
     hght = ds['Geopotential_height_isobaric'].metpy.loc[location]
@@ -656,16 +686,13 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     # Convert from xarray to numpy
     uwind = uwind.metpy.unit_array
     vwind = vwind.metpy.unit_array
-    uwind_850 = uwind_850.metpy.unit_array
-    vwind_850 = vwind_850.metpy.unit_array
     uGEO = uGEO.metpy.unit_array
     vGEO = vGEO.metpy.unit_array
     uaGEO = uaGEO.metpy.unit_array
     vaGEO = vaGEO.metpy.unit_array
 
     # Let MetPy calculate the vertical component of the relative vorticity at 850mb.
-    vort_850 = mpcalc.vorticity(uwind_850, vwind_850, dx=dx, dy=dy)
-
+    vort_850 = mpcalc.vorticity(uwind_850, vwind_850, latitude=lat, longitude=lon)
 
     ####
     # Use GEO and aGEO to calculate aGEO components
@@ -763,9 +790,8 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     #           Show min sfc pressure location inside vort_850 contour.
     #           Figure something out for Highs
     ####
-
-
-
+    deg = 1
+    avg_vort_850 = average_over_degree_radius(vort_850,deg,lat,lon)
 
     ####
     # Trim the data to remove pixels around the edge of the region.
@@ -789,130 +815,70 @@ def calculate_variables(data=None, date=None, forecast=False, fhr=0, level=200, 
     aGEO_along_divergence = aGEO_along_divergence[5:-5,5:-5]
     aGEO_perp_divergence = aGEO_perp_divergence[5:-5,5:-5]
 
-    """
+
+    # SANITY CHECK
     # Output values to make sure things look right.
     # .2f = plot numbers to 2 decimal points.
     # ~P = "pretty print" abbreviated units.
 
-    print("\nMax speeds:")
-    print(f"wind:\t{np.nanmax(wspd):.2f~P}")
-    print(f"GEO:\t{np.nanmax(GEOspd):.2f~P}")
-    print(f"aGEO:\t{np.nanmax(aGEOspd):.2f~P}")
-    print(f"aGEO_along_spd:\t{np.nanmax(aGEO_along_spddir):.2f~P}")
-    print(f"aGEO_perp_spd:\t{np.nanmax(aGEO_perp_spddir):.2f~P}")
+    #print("\nMax speeds:")
+    #print(f"wind:\t{np.nanmax(wspd):.2f~P}")
+    #print(f"GEO:\t{np.nanmax(GEOspd):.2f~P}")
+    #print(f"aGEO:\t{np.nanmax(aGEOspd):.2f~P}")
+    #print(f"aGEO_along_spd:\t{np.nanmax(aGEO_along_spddir):.2f~P}")
+    #print(f"aGEO_perp_spd:\t{np.nanmax(aGEO_perp_spddir):.2f~P}")
 
-    print("\nDivergences:")
-    print(f"wind:\t{np.nanmax(wind_divergence):.2e~P}\t{np.nanmin(wind_divergence):.2e~P}")
-    print(f"GEO:\t{np.nanmax(GEO_divergence):.2e~P}\t{np.nanmin(GEO_divergence):.2e~P}")
-    print(f"aGEO:\t{np.nanmax(aGEO_divergence):.2e~P}\t{np.nanmin(aGEO_divergence):.2e~P}")
-    print(f"aGEO_along:\t{np.nanmax(aGEO_along_divergence):.2e~P}\t{np.nanmin(aGEO_along_divergence):.2e~P}")
-    print(f"aGEO_perp:\t{np.nanmax(aGEO_perp_divergence):.2e~P}\t{np.nanmin(aGEO_perp_divergence):.2e~P}")
-    """
+    #print("\nDivergences:")
+    #print(f"wind:\t{np.nanmax(wind_divergence):.2e~P}\t{np.nanmin(wind_divergence):.2e~P}")
+    #print(f"GEO:\t{np.nanmax(GEO_divergence):.2e~P}\t{np.nanmin(GEO_divergence):.2e~P}")
+    #print(f"aGEO:\t{np.nanmax(aGEO_divergence):.2e~P}\t{np.nanmin(aGEO_divergence):.2e~P}")
+    #print(f"aGEO_along:\t{np.nanmax(aGEO_along_divergence):.2e~P}\t{np.nanmin(aGEO_along_divergence):.2e~P}")
+    #print(f"aGEO_perp:\t{np.nanmax(aGEO_perp_divergence):.2e~P}\t{np.nanmin(aGEO_perp_divergence):.2e~P}")
+
 
     # Package lists into fewer variables.
-    args_map = (lat,lon,smooth_hght,smooth_hght_850)
+    args_map = (lat,lon,smooth_hght,smooth_hght_850,avg_vort_850)
     args_uv = (uwind,vwind, uGEO,vGEO, uaGEO,vaGEO, aGEO_along_u,aGEO_along_v, aGEO_perp_u,aGEO_perp_v)
     args_spd = (wspd, GEOspd, aGEOspd, aGEO_along_spddir, aGEO_perp_spddir)
     args_div = (wind_divergence, GEO_divergence, aGEO_divergence, aGEO_along_divergence, aGEO_perp_divergence)
 
-
-
     # Time to get data
     time_elapsed = dt.now() - start_time
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Variables calculated ({tsec:.2f} seconds)")
-
+    #print(f"--> Variables calculated ({tsec:.2f} seconds)")
 
     return args_map, args_uv, args_spd, args_div
 
 
 
-##################################################################
-# Get the maximum values for the colorbars from a file.          #
-# Make sure the current values don't exceed those from the file. #
-# If they do, replace the file.                                  #
-##################################################################
-def get_bounds(colorbar_maxes, wspd, GEOspd, aGEOspd, aGEO_along_spddir, aGEO_perp_spddir, wind_divergence, GEO_divergence, aGEO_divergence, aGEO_along_divergence, aGEO_perp_divergence, loc='CONUS', replace=True):
-
-    # Compare to max values. See if any of them need to be replaced.
-    restart_if_false = True
-
-    # If you find a max value bigger than what's been recorded, restart the loop of plots.
-    if colorbar_maxes is not None:
-        replace1 = float(colorbar_maxes[0])
-        replace2 = float(colorbar_maxes[1])
-        replace3 = float(colorbar_maxes[2])
-        print(f"--> old: {replace1:.2f}, {replace2:.2f}, {replace3:.2e}")
-        this1 = max_arrays(wspd,GEOspd,aGEOspd)
-        this2 = max_arrays(aGEO_along_spddir,aGEO_perp_spddir)
-        this3 = max_arrays(wind_divergence,GEO_divergence,aGEO_divergence)
-        max1 = max2 = max3 = False
-
-        print(f"--> Max: {this1:.2f}, {this2:.2f}, {this3:.2e}")
-
-        if not replace: return restart_if_false,replace1,replace2,replace3
-        else:
-
-            if replace1 < this1:
-                print(f"XXX\nXXX max wind speed colorbar value replaced.\nXXX OLD: {replace1}, NEW: {this1}\nXXX")
-                replace1 = this1
-                restart_if_false = False
-                max1 = True
-
-            if replace2 < this2:
-                print(f"XXX\nXXX max 2-sided wind speed colorbar value replaced.\nXXX OLD: {replace2}, NEW: {this2}\nXXX")
-                replace2 = this2
-                restart_if_false = False
-                max2 = True
-
-            if replace3 < this3:
-                print(f"XXX\nXXX max divergence colorbar value replaced.\nXXX OLD: {replace3}, NEW: {this3}\nXXX")
-                replace3 = this3
-                restart_if_false = False
-                max3 = True
-
-            # Replace the file of max values.
-            if np.isinf(np.any([max1,max2,max3])):
-                warn=f'Wind and/or divergences contain infinite values.'
-                raise TypeError(warn)
-            elif not replace: pass
-            elif replace and np.any([max1,max2,max3]):
-                os.rename(f'./{loc}_max_colorbar_values.txt',f'./{loc}_max_colorbar_values_old.txt')
-                header = 'one_sided_wind,two_sided_wind,divergence\n'
-                replace = f"{replace1},{replace2},{replace3}"
-
-                with open(f'./{loc}_max_colorbar_values.txt','w') as file_of_maxes:
-                    file_of_maxes.write(header)
-                    file_of_maxes.write(replace)
-                    file_of_maxes.close()
-
-            return restart_if_false,replace1,replace2,replace3
-
-
-
-########################################################################
-# Make a scatter plots revealing how divergence data is being altered. # 
-########################################################################
 def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
+    """
+    Make a scatter plots revealing how divergence data is being altered.
+    """
 
     # How long will it take to make the plots?
     start_time = dt.now()
 
     # Unpack the data to plot.
     wind_divergence, GEO_divergence, aGEO_divergence, aGEO_along_divergence, aGEO_perp_divergence = args_div
-    lat,lon,smooth_hght,smooth_hght_850 = args_map
+    lat,lon,smooth_hght,smooth_hght_850,avg_vort_850 = args_map
     uwind,vwind, uGEO,vGEO, uaGEO,vaGEO, aGEO_along_u,aGEO_along_v, aGEO_perp_u,aGEO_perp_v = args_uv
 
     # Calculate speed of real wind.
     # Remove outermost pixels.
-    wspd = mpcalc.wind_speed(uwind, vwind).to('kts')
+    try:
+        wspd = mpcalc.wind_speed(uwind, vwind).to('kts')
+        wspd_geo = mpcalc.wind_speed(uGEO, vGEO).to('kts')
+    except:
+        wspd = mpcalc.wind_speed(uwind, vwind).metpy.convert_units('kts')
+        wspd_geo = mpcalc.wind_speed(uGEO, vGEO).metpy.convert_units('kts')
     wspd = wspd[5:-5,5:-5]
+    wspd_geo = wspd_geo[5:-5,5:-5]
 
     # Calculate derivative of height from equator to pole.
     # dx, dy = distance between pixels.
     dx, dy = mpcalc.lat_lon_grid_deltas(lon, lat)
     hght_first_y = mpcalc.first_derivative(smooth_hght, delta=dy)
-    #hght_first = hght_first_y
 
     hght_first_x = mpcalc.first_derivative(smooth_hght, delta=dx, axis=1)
     hght_first_x = hght_first_x.flatten()
@@ -920,7 +886,10 @@ def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
     hght_first = hght_first_y*hght_first_y + hght_first_x*hght_first_x
     hght_first = hght_first_y/np.abs(hght_first_y)*np.sqrt(hght_first)
 
-    # Flatten 2D arrays to 1D array
+    hght_gradient_ticks = [-0.001,-0.0005,0,0.0005,0.001]
+    hght_gradient_labels = [-1,-0.5,0,0.5,1]
+
+    # Copy and flatten 2D arrays to 1D array
     aGEO_stream_div = copy.deepcopy(aGEO_along_divergence).magnitude.flatten()
     aGEO_perp_div = copy.deepcopy(aGEO_perp_divergence).magnitude.flatten()
     div = aGEO_divergence.flatten()
@@ -930,16 +899,25 @@ def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
     hght_first = hght_first.flatten()
     wspd = wspd.flatten()
 
-    # Plot in red the data where the divergence values must be adjusted to remove artifacts.
-    #   Where height derivative is small, reduce divergence component with smallest
-    #   magnitude to zero. Reduce other divergence component by equivalent amount. If this
-    #   second component is still great enough to be colored in the plot, so be it.
-    same_wspd = []
-    same_stream_mag = []
-    same_perp_mag = []
-    same_div = []
-    same_hght_first = []
-    same_hght = []
+
+    # red_ variables are where the height gradient is small.
+    #
+    # With little height gradient but a lot of curvature - cutoff highs and lows - divergence values
+    #   become extremely large. This mostly applies to divergence related to radial and tangential
+    #   components of the ageostrophic wind. Trying to compute these components for circular
+    #   shapes doesn't play well with a cartesian grid. We end up lobes of large magnitudes but
+    #   of divergence for these components, but of opposite sign. So the total divergence is very
+    #   small. This is an issue with the shape and grid, not what's going on in the atmosphere.
+    #
+    #   So the goal is to reduce the divergence of both components. The divergence with the smallest
+    #   magnitude is reduced to zero. The other divergence component is reduced by an equivalent
+    #   amount. If the second component is still great enough to be colored in the plot, so be it.
+    red_wspd = []
+    red_stream_mag = []
+    red_perp_mag = []
+    red_div = []
+    red_hght_first = []
+    red_hght = []
     for i,val in enumerate(aGEO_stream_div):
         if -0.0001<hght_first[i]<0.0001:
 
@@ -963,75 +941,76 @@ def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
                     aGEO_perp_div[i]=0
 
             # These are the data that will be plotted red.
-            same_wspd.append(wspd[i])
-            same_stream_mag.append(np.abs(aGEO_stream_div[i]))
-            same_perp_mag.append(np.abs(aGEO_perp_div[i]))
-            same_div.append(div[i])
-            same_hght_first.append(hght_first[i])
-            same_hght.append(smooth_hght[i])
+            red_wspd.append(wspd[i])
+            red_stream_mag.append(np.abs(aGEO_stream_div[i]))
+            red_perp_mag.append(np.abs(aGEO_perp_div[i]))
+            red_div.append(div[i])
+            red_hght_first.append(hght_first[i])
+            red_hght.append(smooth_hght[i])
 
-    print(f'red is {len(same_wspd)} of {len(aGEO_stream_div)} points')
+    #print(f'red is {len(red_wspd)} of {len(aGEO_stream_div)} points')
 
     # Make subplots
-    fig, ((ax1, ax3), (ax2, ax4)) = plt.subplots(2, 2)
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
     fig.set_size_inches(8, 8)
 
     kwargs = {"c":"k","s":1}
 
-    # Divergence magnitude vs wind speed.
-    ax1.scatter(wspd,np.abs(aGEO_along_divergence.magnitude.flatten()),c='gray',s=1)
-    ax1.scatter(wspd,-np.abs(aGEO_perp_divergence.magnitude.flatten()),c='gray',s=1)
-    ax1.scatter(wspd,np.abs(aGEO_stream_div),**kwargs)
-    ax1.scatter(wspd,-np.abs(aGEO_perp_div),**kwargs)
-    ax1.scatter(same_wspd,same_stream_mag,c='red',s=1)
-    ax1.scatter(same_wspd,[-i for i in same_perp_mag],c='red',s=1)
+    # Height vs Wind speed
+    ax1.scatter(wspd,smooth_hght,**kwargs)
+    ax1.scatter(red_wspd,red_hght,c='red',s=1)
 
-    ax1.set_xlabel(f'wind speed (knot)')
-    ax1.set_ylabel('stream <--> perp\ngray=old, black=new, red=adjusted')
-    ax1.set_xlim(left=0,right=60)
-    ax1.set_ylim(bottom=-0.0002,top=0.0002)
-    ax1.axhline(y=-0.00002)
-    ax1.axhline(y=0.00002)
+    ax1.set_xlabel('Wind Speed (knots)')
+    ax1.set_ylabel('Height of Pressure Surface (m)')
+    ax1.set_xlim(left=0)
+    ax1.set_ylim(bottom=np.min(smooth_hght.magnitude)-50,top=np.max(smooth_hght.magnitude)+50)
+    ax1.axvline(x=0)
     ax1.set(adjustable='box')
 
-    # Height vs Wind speed
-    ax2.scatter(wspd,smooth_hght,**kwargs)
-    ax2.scatter(same_wspd,same_hght,c='red',s=1)
+    # Height derivative vs Height
+    ax2.scatter(hght_first,smooth_hght,**kwargs)
+    ax2.scatter(red_hght_first,red_hght,c='red',s=1)
 
-    ax2.set_xlabel('wind speed (knot)')
-    ax2.set_ylabel('height')
-    ax2.set_xlim(left=0) #,right=60)
-
-    print(smooth_hght)
-    print(np.min(smooth_hght.magnitude)-50,np.min(smooth_hght.magnitude)-50)
-
+    ax2.set_xlabel('Height Gradient (m/km)')
+    ax2.set_ylabel('Height of Pressure Surface (m)')
+    ax2.set_xlim(left=-0.001,right=0.001)
+    ax2.set_xticks(hght_gradient_ticks,labels=hght_gradient_labels)
     ax2.set_ylim(bottom=np.min(smooth_hght.magnitude)-50,top=np.max(smooth_hght.magnitude)+50)
     ax2.axvline(x=0)
     ax2.set(adjustable='box')
 
-    # Height derivative vs Height
-    ax3.scatter(hght_first,smooth_hght,**kwargs)
-    ax3.scatter(same_hght_first,same_hght,c='red',s=1)
+    # Wind speed vs Height derivative
+    ax3.scatter(wspd,hght_first,**kwargs)
+    ax3.scatter(red_wspd,red_hght_first,c='red',s=1)
 
-    ax3.set_xlabel('hght_first_derivative')
-    ax3.set_ylabel('height')
-    ax3.set_xlim(left=-0.001,right=0.001)
-    ax3.set_ylim(bottom=np.min(smooth_hght.magnitude)-50,top=np.max(smooth_hght.magnitude)+50)
-    ax3.axvline(x=0)
+    ax3.set_xlabel(f'Wind Speed (knots)')
+    ax3.set_ylabel('Height Gradient (m/km)')
+    ax3.set_ylim(bottom=-0.001,top=0.001)
+    ax3.set_yticks(hght_gradient_ticks,labels=hght_gradient_labels)
+    ax3.axhline(y=0)
     ax3.set(adjustable='box')
 
-    # Wind speed vs Height derivative
-    ax4.scatter(wspd,hght_first,**kwargs)
-    ax4.scatter(same_wspd,same_hght_first,c='red',s=1)
+    # Geostrophic wind speed vs Height derivative
+    lat_colors = ax4.scatter(wspd_geo,hght_first,c=lat,s=1,cmap="plasma")
+    cax = ax4.inset_axes([0.95, 0.55, 0.03, 0.4])
+    cbar_kwargs = {
+        'ax':ax4,
+        'cax':cax,
+        'orientation':'vertical',
+        'ticklocation':'left',
+        'ticks':[20,30,40,50,60],
+        'format':'${x}\\degree$N',
+    }
+    fig.colorbar(lat_colors, **cbar_kwargs)
 
-    ax4.set_xlabel(f'wind speed (knot)')
-    ax4.set_ylabel('hght_first_derivative')
+    ax4.set_xlabel(f'Geostrophic Wind Speed (knots)')
+    ax4.set_ylabel('Height Gradient (m/km)')
     ax4.set_ylim(bottom=-0.001,top=0.001)
+    ax4.set_yticks(hght_gradient_ticks,labels=hght_gradient_labels)
     ax4.axhline(y=0)
     ax4.set(adjustable='box')
 
-
-    print("--> Saving graph")
+    #print("--> Saving graph")
 
     fig.tight_layout(pad=1.0)
     fig.savefig(f"{level}/{level}_{fhr}_graphs.png")
@@ -1042,7 +1021,7 @@ def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
     # Time to plot data
     time_elapsed = dt.now() - start_time
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Plotted graphs ({tsec:.2f} seconds)")
+    #print(f"--> Plotted graphs ({tsec:.2f} seconds)")
 
 
 
@@ -1052,13 +1031,10 @@ def diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv):
 def plot_the_map(args_map,args_uv,args_spd,args_div,date,
             contour_wind='real', plot_barbs='real', grid_fill='real', name=None, fhr=0,
             level=200,
-            bounds_set=None,
-            spacing=10, barb_quiver='barb', plot_hghts=True, loc='CONUS', red_on_map=False):
-
-    # How long will it take to get the data?
-    start_time = dt.now()
-
+            spacing=10, barb_quiver='barb', plot_hghts=True, loc='CONUS', red_on_map=False, data_850=False):
     """
+    Plot maps using data from make_image()
+
     Function parameters:
         args_map = lat, lon, height, 850hPa data for plotting.
         args_uv = u and v wind components for plotting barbs
@@ -1078,20 +1054,23 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
         fhr = How many forecast hours in the future to plot.
         level = pressure level for the plot in hectopascals or millibars.
                     Typically in the jet stream. Used in title of the plot.
-        bounds_set = set of extreme values to use when plotting grid colorbars.
         spacing = plots barbs every x grid points. Default is 10.
         barb_quiver = plots either barbs (default) or quivers (aka arrows).
         plot_hghts = Include the black height contours or not.
         loc = 'CONUS', 'Tropics', 'Carrib' Used to set [W, E, S, N] extent where plot is located.
         red_on_map = Plots red areas where divergence values have been altered.
+        data_850 = collection of 850mb vorticity polygons and maxima locations.
     """
 
+    # How long will it take to get the data?
+    start_time = dt.now()
+
+
     # Unpack the data to plot
-    lat,lon,smooth_hght,smooth_hght_850 = args_map
+    lat,lon,smooth_hght,smooth_hght_850,avg_vort_850 = args_map
     uwind,vwind, uGEO,vGEO, uaGEO,vaGEO, aGEO_along_u,aGEO_along_v, aGEO_perp_u,aGEO_perp_v = args_uv
     wspd, GEOspd, aGEOspd, aGEO_along_spddir, aGEO_perp_spddir = args_spd
     wind_divergence, GEO_divergence, aGEO_divergence, aGEO_along_divergence, aGEO_perp_divergence = args_div
-    wind_1d_bound, wind_2d_bound, div_bound = bounds_set
 
 
     ###
@@ -1104,14 +1083,16 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     # What minimum value wind speed do you want to contour? (knots)
     if contour_wind in ['real','geo']:
         if level < 400: min_contour = 75
-        else:           min_contour = 50
+        elif level<600: min_contour = 50
+        else:           min_contour = 25
     elif contour_wind in ['ageo']:
         min_contour = 25
 
     # What minimum value do you want barbs or quivers plotted for? (knots)
     if plot_barbs in ['real','geo']:
         if level < 400: min_barb = 75
-        else:           min_barb = 50
+        elif level<600: min_barb = 50
+        else:           min_barb = 25
     elif plot_barbs in ['ageo']:
         min_barb = 15
     elif plot_barbs in ['ageo_along','ageo_perp']:
@@ -1120,14 +1101,16 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     # What minimum value do you want the grid fill to be colored in?
     if grid_fill in ['real','geo']:
         if level < 400: min_grid = 50
-        else:           min_grid = 40
+        elif level<600: min_grid = 25
+        else:           min_grid = 10
     elif grid_fill in ['ageo']:
         min_grid = 15
     elif grid_fill in ['ageo_along','ageo_perp']:
         min_grid = 10
     elif grid_fill in ['real_div','geo_div','ageo_div','ageo_along_div','ageo_perp_div']:
-        if level < 400: min_grid = 0.00002
-        else:           min_grid = 0.000015
+        min_grid = 0.00002
+        #if level < 400: min_grid = 0.00002
+        #else:           min_grid = 0.000015
 
 
     ###
@@ -1195,9 +1178,92 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     ax1.add_feature(cfeature.STATES.with_scale('50m'), edgecolor='grey')
 
 
+    #####
+    # Plot contours of 850mb vorticity to identify extratropical cyclones
+    #####
+
+    if plot_850 and not data_850:
+        # Create contours of spatially averaged 850mb vorticity.
+        kwargs = {
+                'colors':'purple',
+                'linewidths':5,
+                'levels':[0.0001],
+                'transform':ccrs.PlateCarree()
+                }
+        contours_850 = ax1.contour(lon, lat, avg_vort_850[5:-5,5:-5], **kwargs)
+        max_vort_xarray = (avg_vort_850.where(avg_vort_850==avg_vort_850.max(), drop=True).squeeze())
+
+        # Convert matplotlib contours to shapely polygons
+        cyclones_850 = contour_to_shapely(contours_850)
+
+        # Remove the created contours from the plot.
+        contours_850.remove()
+
+        # Get avg_vort_max_values inside each contour.
+        max_vort_locations = []
+        vort_linewidths = []
+        for cyclone in cyclones_850:
+
+            # Find the maximum vorticity value inside the polygon
+            max_vort_location,max_vort_value = max_value_in_polygon(avg_vort_850,cyclone)
+            max_vort_locations.append(max_vort_location)
+            xx = [a[0] for a in max_vort_locations]
+            yy = [a[1] for a in max_vort_locations]
+
+            # Determine contour linewidth (lw) based on avg_vort_max_value.
+            vort_lw = round(max_vort_value / 0.0001,1)
+            vort_linewidths.append(vort_lw)
+
+            # Plot the polygon
+            kwargs = {'color':'red', #lightgrey
+                      'linestyle':'--',
+                      'linewidth':vort_lw,
+                      'transform':ccrs.PlateCarree()
+                     }
+            if cyclone.geom_type == 'Polygon':
+                ax1.plot(*cyclone.exterior.xy, **kwargs)
+            elif cyclone.geom_type == 'LineString':
+                ax1.plot(*cyclone.xy, **kwargs)
+
+            kwargs['linewidth'] = 1
+            legend850 = mlines.Line2D([], [], **kwargs)
+            label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
+
+    elif plot_850 and data_850:
+
+        # Unpack data
+        max_vort_locations,vort_linewidths,cyclones_850 = data_850
+
+        # lon and lat values for max_vort_locations
+        xx = [a[0] for a in max_vort_locations]
+        yy = [a[1] for a in max_vort_locations]
+
+        # Plot each polygon
+        for i,_ in enumerate(max_vort_locations):
+            vort_lw = vort_linewidths[i]
+            cyclone = cyclones_850[i]
+
+            kwargs = {'color':'red', #lightgrey
+                      'linestyle':'--',
+                      'linewidth':vort_lw,
+                      'transform':ccrs.PlateCarree()
+                     }
+            if cyclone.geom_type == 'Polygon':
+                ax1.plot(*cyclone.exterior.xy, **kwargs)
+            elif cyclone.geom_type == 'LineString':
+                ax1.plot(*cyclone.xy, **kwargs)
+
+            kwargs['linewidth'] = 1
+            legend850 = mlines.Line2D([], [], **kwargs)
+            label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
+
+    else: pass
+
+
     ######
     # Plot Solid Contours of Geopotential Height
     ######
+
     # Plot height of current pressure level.
     if plot_hghts:
         kwargs = {'colors':'black',
@@ -1207,21 +1273,12 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
                 }
         cs = ax1.contour(lon, lat, smooth_hght, **kwargs)
 
-        legend1,_ = cs.legend_elements()
+        legend_kwargs = {'color':kwargs['colors'],
+                         'linewidth':kwargs['linewidths']
+                        }
+        #legend1,_ = cs.legend_elements()
+        legend1 = mlines.Line2D([], [], **legend_kwargs)
         label1 = f'{level}hPa Heights\n(every {cint}m)'
-    else: pass
-
-    # Plot 850mb heights, if desired.
-    if plot_850_hghts:
-        kwargs = {'colors':'gray',
-                'linewidths':0.5,
-                'levels':range(0, 20000, 30),  # contour every 30m
-                'transform':ccrs.PlateCarree()
-                }
-        cs850 = ax1.contour(lon, lat, smooth_hght_850, **kwargs)
-
-        legend850,_ = cs850.legend_elements()
-        label850 = f'850hPa Heights\n(every {30}m)'
     else: pass
 
 
@@ -1267,10 +1324,13 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
                         'levels':[50],
                         'transform':ccrs.PlateCarree()
                     }
-            ax1.contour(lon, lat, masked_wspd, **kwargs)
+            cspd = ax1.contour(lon, lat, masked_wspd, **kwargs)
 
         # Create legend label.
-        legend2,_ = cspd.legend_elements()
+        legend_kwargs = {'color':kwargs['colors'],
+                        }
+        #legend2,_ = cspd.legend_elements()
+        legend2 = mlines.Line2D([], [], **legend_kwargs)
         label2 = f'{lgd} Speed\n(every 25kt)'
     else:
         pass
@@ -1280,6 +1340,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     ######
     # Plot grid of magnitude of some other wind variable
     ######
+
     # What do you want to grid?
     if grid_fill in ['real']: use_grid=wspd
     elif grid_fill in ['geo']: use_grid=GEOspd
@@ -1301,30 +1362,35 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
         # Create the colormap
         ##
 
+        # Colorbar max values
+        wind_1d_colorbar_max = 150
+        wind_2d_colorbar_max = 90
+        divergence_colorbar_max = 1.0e-04
+
         # convert wind units to kts.
         if use_grid.units in ['meter / second','knot']:
             use_grid = use_grid.to('kts')
 
         # What is the top and bottom extent (bounds) of the scale?
         if grid_fill in ['real','geo','ageo']:
-            bounds = round(wind_1d_bound/10,0)*10
+            bounds = round(wind_1d_colorbar_max/10,0)*10
             interval = bounds*2
         elif grid_fill in ['ageo_along','ageo_perp']:
-            bounds = round(wind_2d_bound/10,0)*10
+            bounds = round(wind_2d_colorbar_max/10,0)*10
             interval = bounds*2
         elif grid_fill[-4:]=='_div':
             colors_multiplier = 1000000  #10^6
-            bounds = round(div_bound*colors_multiplier,0)/colors_multiplier
+            bounds = round(divergence_colorbar_max * colors_multiplier,0)/colors_multiplier
             interval = bounds*colors_multiplier*2
-            print(f" --> bounds: {bounds}, interval: {interval}")
+            #print(f" --> bounds: {bounds}, interval: {interval}")
 
         # Get the base colormap
         if grid_fill in ['real','geo','ageo']:
-            getcmap = cm.get_cmap('Blues',interval)
+            getcmap = cm['Blues']
         elif grid_fill in ['ageo_along','ageo_perp']:
-            getcmap = cm.get_cmap('RdBu',interval)
+            getcmap = cm['RdBu']
         elif grid_fill[-4:]=='_div':
-            getcmap = cm.get_cmap('PuOr_r',interval)
+            getcmap = cm['PuOr_r']
 
         # Calculate how much white goes in the middle, assuming one pixel per speed unit.
         #   The np.ones([(min_grid*2)-1,_]) assures we have an odd number of rows to surround zero.
@@ -1394,7 +1460,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
 
         # Label the colorbar.
         if bounds > 10: cb.set_label(label,size=15,labelpad=-62)
-        else: cb.set_label(label,size=15,labelpad=-55)
+        else: cb.set_label(label,size=15,labelpad=-62)
 
 
         ##
@@ -1411,24 +1477,25 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
             hght_first = hght_first.flatten()
 
             # Find locations to highlight
-            same_lon = []
-            same_lat = []
+            red_lon = []
+            red_lat = []
             for i,row in enumerate(aGEO_along_divergence.flatten()):
                 if -0.0001<hght_first[i]<0.0001:
 
                     # Identify lats/lons that qualify.
-                    same_lon.append(lon_flat[i])
-                    same_lat.append(lat_flat[i])
+                    red_lon.append(lon_flat[i])
+                    red_lat.append(lat_flat[i])
 
-            print(f'Altered {len(same_lon)} of {lon.shape[0]*lon.shape[1]}: {len(same_lon)/(lon.shape[0]*lon.shape[1])}')
+            #print(f'Altered {len(red_lon)} of {lon.shape[0]*lon.shape[1]}: {len(red_lon)/(lon.shape[0]*lon.shape[1])}')
 
             # Draw red circles
-            ax1.plot(same_lon,same_lat,'ro',alpha=0.25,ms=3,mew=0,transform=ccrs.Geodetic())
+            ax1.plot(red_lon,red_lat,'ro',alpha=0.25,ms=3,mew=0,transform=ccrs.Geodetic())
 
 
     ######
     # Plot Barbs or Quiver of some wind variable
     ######
+
     # Get the wind we want from settings.
     if plot_barbs in ['real']:
         u_wind = uwind[5:-5,5:-5]
@@ -1479,6 +1546,15 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     ######
     # With everything plotted, add titles, legend, etc.
     ######
+    # Add L where 850mb averaged vorticity maximum (approximate low pressure center) is.
+    kwargs = {'c':'red',
+              'fontfamily':'sans-serif',
+              'fontweight':'bold',
+              'transform':ccrs.PlateCarree()
+            }
+    for i,_ in enumerate(xx):
+        if extent[0]<xx[i]<extent[1] and extent[2]<yy[i]<extent[3]:
+            ax1.text(xx[i],yy[i],'L',**kwargs)
 
     # Add legend
     kwargs = {'bbox_to_anchor':(1,0.99),
@@ -1489,11 +1565,13 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
                 'loc':4,
                 'frameon':False
     }
-    if plot_850_hghts:
-        leg = ax1.legend([legend2[0],legend1[0],legend850[1]], [label2,label1,label850], **kwargs)
+    if plot_850:
+        #leg = ax1.legend([legend2[0],legend1[0],legend850], [label2,label1,label850], **kwargs)
+        leg = ax1.legend([legend2,legend1,legend850], [label2,label1,label850], **kwargs)
     else:
         kwargs['ncol'] = 2
-        leg = ax1.legend([legend2[0],legend1[0]], [label2,label1], **kwargs)
+        #leg = ax1.legend([legend2[0],legend1[0]], [label2,label1], **kwargs)
+        leg = ax1.legend([legend2,legend1], [label2,label1], **kwargs)
     leg._legend_box.align = "right"
 
 
@@ -1528,8 +1606,9 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
 
 
     # Add attribution label.
-    text = '@jetstreambot'
+    text = 'Stephen Mullens'
     kwargs = {'weight':'bold',
+                'color':'gray',
                 'bbox':dict(boxstyle="round",ec='white',fc="white",alpha=0.75),
                 'va':'bottom',
                 'snap':True,
@@ -1541,6 +1620,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     ##################
     # Save the image #
     ##################
+
     savepath = f"{level}/{level}_{fhr}_{grid_fill}.png"
     plt.savefig(savepath,bbox_inches='tight')
 
@@ -1552,9 +1632,12 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     # Time to plot data
     time_elapsed = dt.now() - start_time
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Plotted data ({tsec:.2f} seconds)")
+    #print(f"--> Plotted data ({tsec:.2f} seconds)")
 
-    return True
+    # Assemble 850mb data to use again.
+    data_850 = (max_vort_locations,vort_linewidths,cyclones_850)
+
+    return data_850
 
 
 
@@ -1566,83 +1649,47 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
 #                                              # 
 ################################################
 
-###########################
-# Function 1:             #
-# Get max colorbar values #
-###########################
-def get_max_colorbar(loc):
-    """
-    Function parameters:
-        loc = location to plot. 'CONUS', 'Tropics', 'Carrib'
-    """
-
-    # Get values from the file and split them into a list.
-    try:
-        print(f"--> Get {loc}_max_colorbar_values.txt")
-        with open(f'./{loc}_max_colorbar_values.txt','r') as file_of_maxes:
-            lines = file_of_maxes.readlines()
-            colorbar_maxes = lines[1].split(',')
-
-    # If the file doesn't exist, create one with zeros as the values.
-    # Report the zeros as the values, knowing they'll get updated later.
-    except:
-        print(f"--> Create new {loc}_max_colorbar_values.txt file.")
-        header = 'one_sided_wind,two_sided_wind,divergence\n'
-        new_max_values = '0,0,0'
-
-        # Write file.
-        with open('./{loc}_max_colorbar_values.txt','w') as file_of_maxes:
-            file_of_maxes.write(header)
-            file_of_maxes.write(new_max_values)
-
-        colorbar_maxes = new_max_values.split(',')
-
-    return colorbar_maxes
-
-
-
-##############################################
-# Function 2:                                #
-# Script that controls making of images.     #
-# This accesses a number of above functions. #
-##############################################
-def make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,
+def make_images(ds,date,fhr,levels,
                 plots,num_passes,spacing,barb_quiver,
                 plot_hghts,red_on_map,big_start_time):
-
     """
+    Function 1:
+    Script that controls making of images.
+    This accesses a number of the secondary functions.
+
     Function parameters:
         ds = dataset (ds) to be plotted
         date = date of the data initialization time, for titles and such
         fhr = forecast hour(s) to plot
         levels = list of pressure levels to plot
-        colorbar_maxes = how far should colorbar extend for each type of plot?
         plots = list of plots to make.
         num_passes = integer, number of smoothing passes to make
         spacing = integer, now many grids between barb or quiver
         barb_quiver = plot wind barbs or arrows. 'barb', 'quiver'
         big_start_time = datetime object of when the script started running
     """
+    data_850 = False
 
     # For each pressure level...
     for level in levels:
         print(f"\n*** Forecast Hour {fhr} - {level}hPa - ({(dt.now() - big_start_time).total_seconds():.2f} seconds) ***\n")
 
         # Catch any problems before we begin.
-        print("LOOKING FOR PROBLEMS")
-        args = [plots,
-                level,
-                num_passes,
-                spacing,
-                barb_quiver,
-                plot_hghts
-                ]
-        true_false = problems(*args)
-        print("None found.")
+        if look_for_problems:
+            #print("LOOKING FOR PROBLEMS")
+            args = [plots,
+                    level,
+                    num_passes,
+                    spacing,
+                    barb_quiver,
+                    plot_hghts
+                    ]
+            true_false = problems(*args)
+            #print("None found.")
 
 
         # Calculate all the wind and divergence variables to plot.
-        print("\nMAKING CALCULATIONS")
+        #print("\nMAKING CALCULATIONS")
         all_args = (ds,date,forecast,fhr)
         kwargs = {'level':level,
                 'num_passes':num_passes,
@@ -1651,237 +1698,31 @@ def make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,
         args_map, args_uv, args_spd, args_div = calculate_variables(*all_args,**kwargs)
 
 
-        # Get the bounds we need for our colorbar.
-        print("\nGETTING BOUNDS")
-        restart_if_false, wind_1d_bound, wind_2d_bound, div_bound = get_bounds(colorbar_maxes, *args_spd, *args_div, location, replace)
-
-
-        # If current data is beyond bound, and we're allowing the file to be updated,
-        # Start making plots again, from the beginning, so plotting is uniform.
-        if replace and not restart_if_false:
-
-            # Reset the colorbar_maxes info.
-            colorbar_maxes = get_max_colorbar(location)
-
-            # Start the program from the beginning.
-            make_images(ds,date,fhr,levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,red_on_map,big_start_time)
-
-            # Don't do steps below. They've already occurred.
-            break
-
-        else: pass
-
-
-        # Group bounds together. 
-        bounds_set = (wind_1d_bound, wind_2d_bound, div_bound)
-
-
         # Make scatter plot of the divergence components.
-        print("\nMAKING SCATTER PLOT")
+        #print("\nMAKING SCATTER PLOT")
         diagnostic_scatter_plot(level,fhr,args_div,args_map,args_uv)
 
 
         # Plot the maps.
-        print("\nMAKING MAPS")
-        if level==focus_level:
-            # Plot all map types for pressure level to focus on.
-            for i,plot in enumerate(plots):
-                print(f"\n--> Plotting #{i}: {plot['name']}")
-                all_args = (args_map,args_uv,args_spd,args_div,date)
-                kwargs = {'contour_wind':plot['contour_wind'],
-                            'plot_barbs':plot['plot_barbs'],
-                            'grid_fill':plot['grid_fill'],
-                            'name':plot['name'],
-                            'fhr':fhr,
-                            'level':level,
-                            'bounds_set':bounds_set,
-                            'spacing':spacing,
-                            'barb_quiver':barb_quiver,
-                            'plot_hghts':plot_hghts,
-                            'loc':location,
-                            'red_on_map':red_on_map
-                    }
-                plot_the_map(*all_args,**kwargs)
-        else:
-            # Only plot what will be used for plots at other pressure levels.
-            #i = 0
-            #plot = plots[-1]
-            for i,plot in enumerate(plots):
-
-                print(f"\n--> Plotting #{i}: {plot['name']}")
-                all_args = (args_map,args_uv,args_spd,args_div,date)
-                kwargs = {'contour_wind':plot['contour_wind'],
+        #print("\nMAKING MAPS")
+        # Plot all map types for pressure level to focus on.
+        for i,plot in enumerate(plots):
+            #print(f"\n--> Plotting #{i}: {plot['name']}")
+            all_args = (args_map,args_uv,args_spd,args_div,date)
+            kwargs = {'contour_wind':plot['contour_wind'],
                         'plot_barbs':plot['plot_barbs'],
                         'grid_fill':plot['grid_fill'],
                         'name':plot['name'],
                         'fhr':fhr,
                         'level':level,
-                        'bounds_set':bounds_set,
                         'spacing':spacing,
                         'barb_quiver':barb_quiver,
                         'plot_hghts':plot_hghts,
                         'loc':location,
-                        'red_on_map':red_on_map
-                    }
-                plot_the_map(*all_args,**kwargs)
-
-
-
-########################################
-# Function 3:                          #
-# Make animations of the plotted maps. #
-########################################
-def make_animation(level,fhr_list):
-
-    """
-    Function parameters:
-        level = pressure level in hectopascals or millibars.
-    """
-
-    # How long will it take to get the data?
-    start_time = dt.now()
-
-    # What files belong in the animation?
-    # Master list contains lists of animations to make.
-    # Note, this is actually one long list with four parts.
-    files_list = []
-    files_list_parts = ['real','ageo_along','ageo_perp','ageo_div']
-
-    for a in files_list_parts:
-        for b in fhr_list:
-            files_list.append(f'{level}_{b}_{a}.png')
-
-    files_list = [files_list]
-
-    """
-    files_list = [[f'{level}_0_real.png',f'{level}_3_real.png',f'{level}_6_real.png',f'{level}_9_real.png',f'{level}_12_real.png',f'{level}_15_real.png',f'{level}_18_real.png',f'{level}_21_real.png',f'{level}_24_real.png',f'{level}_27_real.png',f'{level}_30_real.png',f'{level}_33_real.png',f'{level}_36_real.png',f'{level}_39_real.png',f'{level}_42_real.png',f'{level}_45_real.png',f'{level}_48_real.png',
-                f'{level}_0_ageo_along.png',f'{level}_3_ageo_along.png',f'{level}_6_ageo_along.png',f'{level}_9_ageo_along.png',f'{level}_12_ageo_along.png',f'{level}_15_ageo_along.png',f'{level}_18_ageo_along.png',f'{level}_21_ageo_along.png',f'{level}_24_ageo_along.png',f'{level}_27_ageo_along.png',f'{level}_30_ageo_along.png',f'{level}_33_ageo_along.png',f'{level}_36_ageo_along.png',f'{level}_39_ageo_along.png',f'{level}_42_ageo_along.png',f'{level}_45_ageo_along.png',f'{level}_48_ageo_along.png',
-                f'{level}_0_ageo_perp.png',f'{level}_3_ageo_perp.png',f'{level}_6_ageo_perp.png',f'{level}_9_ageo_perp.png',f'{level}_12_ageo_perp.png',f'{level}_15_ageo_perp.png',f'{level}_18_ageo_perp.png',f'{level}_21_ageo_perp.png',f'{level}_24_ageo_perp.png',f'{level}_27_ageo_perp.png',f'{level}_30_ageo_perp.png',f'{level}_33_ageo_perp.png',f'{level}_36_ageo_perp.png',f'{level}_39_ageo_perp.png',f'{level}_42_ageo_perp.png',f'{level}_45_ageo_perp.png',f'{level}_48_ageo_perp.png',
-                f'{level}_0_ageo_div.png',f'{level}_3_ageo_div.png',f'{level}_6_ageo_div.png',f'{level}_9_ageo_div.png',f'{level}_12_ageo_div.png',f'{level}_15_ageo_div.png',f'{level}_18_ageo_div.png',f'{level}_21_ageo_div.png',f'{level}_24_ageo_div.png',f'{level}_27_ageo_div.png',f'{level}_30_ageo_div.png',f'{level}_33_ageo_div.png',f'{level}_36_ageo_div.png',f'{level}_39_ageo_div.png',f'{level}_42_ageo_div.png',f'{level}_45_ageo_div.png',f'{level}_48_ageo_div.png']]
-    """
-
-    # What to name the files?
-    filenames = [f'{level}_looking_ahead.gif']
-
-
-    # Assemble each GIF.
-    for i,files in enumerate(files_list):
-        frames = []
-        # Assemble each image into a list of frames for the GIF.
-        # Resize the file so the GIF is ~10MB.
-        for j,file in enumerate(files):
-            new_frame = PIL.Image.open(f'{level}/{file}', mode='r')
-            frames.append(new_frame.resize((682,454)))
-
-            # Make the last image in each of the four parts last longer.
-            #if i==0 and j in [16,33,50,67]:
-            if i==0 and j in [24,49,74,99]:
-                for x in range(5): frames.append(new_frame.resize((682,454)))
-
-        # Save GIF
-        frames[0].save(
-            f'{level}/{filenames[i]}',
-            format='GIF',
-            append_images=frames[1:],
-            save_all=True,
-            duration=200,               # time in milliseconds
-            optimize=True,              # makes file smaller
-            loop=0)                     # 0 = loops forever
-
-        print(f'--> Made {filenames[i]} - {len(frames)} frames')
-
-    # Time to plot data
-    time_elapsed = dt.now() - start_time
-    tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Made animations ({tsec:.2f} seconds)")
-
-    return True
-
-
-
-######################################
-# Function 4:                        #
-# Tweet a series of images and GIFs. #
-######################################
-def tweet_images(date,fhr,send_tweet):
-
-    """
-    Function parameters:
-        date = the datetime format of the date.
-        fhr = forecast hour that was plotted.
-        send_tweet = True is send, False is don't send.
-    """
-
-    # Tweet the requested images or animations
-    # 1) Real wind + GEO wind + divergence + aGEO wind
-    # 2) Supergeostrophic wind + super-div
-    # 3) 4-Quadrant wind + perp-div
-    # 4) Div at 200, 250, 300, 400
-    # 5) GIF looking ahead to 48-hr forecast.
-    #       Real wind + Supergeostrophic + 4-Quadrant + divergence
-
-    reply = False
-
-    """
-    # Test
-    text = f"GFS Forecast\nData from {date:%A, %H UTC %-d %B %Y}\n"
-    images = f"./200/200_looking_ahead.gif"
-    tweet(text,images,send_tweet,reply)
-    """
-
-
-    # First tweet.
-    text = f"GFS Forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}\n\n- forecasted wind\n- geostrophic wind\n- ageostrophic wind\n- divergence.\n\n{fhr}-hour forecast\nData from {date:%A, %H UTC %-d %B %Y}\n"
-    images = [f"./{focus_level}/{focus_level}_{fhr}_real.png",
-                f"./{focus_level}/{focus_level}_{fhr}_geo.png",
-                f"./{focus_level}/{focus_level}_{fhr}_ageo.png",
-                f"./{focus_level}/{focus_level}_{fhr}_ageo_div.png"]
-    tweet(text,images,send_tweet,reply)
-
-    time.sleep(5)
-
-
-    # The rest of the tweets should be replies, forming a thread.
-    reply = True
-
-
-    # Second tweet
-    text = f"Supergeostrophic wind and divergence\nAgeostrophic wind along the streamline.\n\n{fhr}-hour GFS {focus_level}-hPa forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
-    images = [f"./{focus_level}/{focus_level}_{fhr}_ageo_along.png",
-                f"./{focus_level}/{focus_level}_{fhr}_ageo_along_div.png"]
-    tweet(text,images,send_tweet,reply)
-
-    time.sleep(5)
-
-
-    # Third tweet
-    text = f"Four Quadrant Model wind and divergence\nAgeostrophic wind perpendicular to the streamline.\n\n{fhr}-hour GFS {focus_level}-hPa forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
-    images = [f"./{focus_level}/{focus_level}_{fhr}_ageo_perp.png",
-                f"./{focus_level}/{focus_level}_{fhr}_ageo_perp_div.png"]
-    tweet(text,images,send_tweet,reply)
-
-    time.sleep(5)
-
-
-    # Fourth tweet
-    text = f"Comparing altitudes\n\n{fhr}-hour GFS forecast\nfor {date+timedelta(hours=fhr):%H UTC %-d %B}"
-    images = [f"./200/200_{fhr}_ageo_div.png",
-                f"./250/250_{fhr}_ageo_div.png",
-                f"./300/300_{fhr}_ageo_div.png",
-                f"./400/400_{fhr}_ageo_div.png"]
-    tweet(text,images,send_tweet,reply)
-
-    time.sleep(5)
-
-
-    # Fifth tweet
-    #text = f"Looking ahead 48 hours..."
-    text = f"Looking ahead 96 hours..."
-    images = f"./{focus_level}/{focus_level}_looking_ahead.gif"
-    tweet(text,images,send_tweet,reply)
-
-
-    return True
+                        'red_on_map':red_on_map,
+                        'data_850':data_850
+                }
+            data_850 = plot_the_map(*all_args,**kwargs)
 
 
 
@@ -1903,7 +1744,7 @@ big_start_time = dt.now()
 #############################
 # Get date to retrieve data #
 #############################
-today = dt.utcnow()
+today = dt.now(timezone.utc)
 if today.hour<6: hour = 0
 elif today.hour<12: hour = 6
 elif today.hour<18: hour = 12
@@ -1974,39 +1815,13 @@ elif forecast:
 
 
 
-###########################
-# Get max colorbar values #
-###########################
-colorbar_maxes = get_max_colorbar(location)
-
-
-
 #########################################################
 # Now that we have the date, data, and colorbar values, #
 # let's do the calculations and create the plots.       #
 #########################################################
 # Calculate all forecast hours at pressure of focus level.
 for fhr in fhr_list:
-    make_images(ds,date,fhr,use_levels,focus_level,colorbar_maxes,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
-
-
-
-###########################################
-# With the images made, make animated GIF #
-###########################################
-#print(f"MAKING ANIMATIONS - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
-# Make animations from the maps you created.
-#for level in levels:
-#    if level==focus_level:
-#        true_false = make_animation(level,fhr_list)
-
-
-
-###############################################
-# With all the plots made, let's tweet stuff. #
-###############################################
-#print(f"TWEETING - ({(dt.now() - big_start_time).total_seconds():.2f} seconds)")
-#tweet_images(date,fhr_base,send_tweet)
+    make_images(ds,date,fhr,levels,plots,num_passes,spacing,barb_quiver,plot_hghts,red_on_map,big_start_time)
 
 
 
