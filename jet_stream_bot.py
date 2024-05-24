@@ -1,11 +1,14 @@
 ########################################################################
 #                                                                      #
-# This code takes GFS data, identifies the jet stream and jet streaks, #
-# and plots the ageostrophic components of wind along and across       #
-# the calculated geostrophic wind. Divergence of wind, geostrophic     #
-# wind, and components of ageostrophic wind is also calculated.        #
+# This code takes GFS data, plots the jet stream and jet streaks at a  #
+# range of pressure levels. To analyze the impacts of the jet on near  #
+# surface features, the ageostrophic components along (tangent to) and #
+# across (perpendicular to) the geostrophic wind vectors are           #
+# calculated. Divergence of wind from these components are also        #
+# calculated to show contributions to synoptic ascent of air.          #
 #                                                                      #
 # Code by Stephen Mullens. May 2020.                                   #
+# Major update May 2024.                                               #
 #                                                                      #
 ########################################################################
 
