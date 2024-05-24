@@ -37,20 +37,6 @@ from cartopy.mpl.geoaxes import GeoAxes
 GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
 
-# IDEA: Can I find the 1x1 degree average of 850mb vorticity,
-# contour the 1x10^-5 (or whatever the exponent is) line,
-# but weight the thickness of the line by the maximum
-# average vorticity inside the contour? The higher the vorticity,
-# the stronger the storm, the bolder the line.
-# This may involve turning the contour into a polygon, or determining
-# if a pixel is inside the polygon, to find the max vorticity.
-#
-# BONUS: Can I identify whether this is an extratropical or tropical
-# storm? Can I label the lowest surface pressure with the appropriate
-# symbol? Use the methodology in Philippe Papin's Climatology of 
-# Central American Gyres paper.
-
-
 
 ####################
 # MAP COMBINATIONS #
