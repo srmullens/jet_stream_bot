@@ -1172,6 +1172,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     #####
 
     if plot_850 and not data_850:
+        print('850: T/F',plot_850,data_850)
         # Create contours of spatially averaged 850mb vorticity.
         kwargs = {
                 'colors':'purple',
@@ -1219,7 +1220,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
             label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
 
     elif plot_850 and data_850:
-
+        print('850: T/T',plot_850,data_850)
         # Unpack data
         max_vort_locations,vort_linewidths,cyclones_850 = data_850
 
@@ -1246,7 +1247,10 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
             legend850 = mlines.Line2D([], [], **kwargs)
             label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
 
-    else: pass
+    else: 
+            print('850: Else',plot_850,data_850)
+            xx = []
+            yy = []
 
 
     ######
@@ -1535,15 +1539,16 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     ######
     # With everything plotted, add titles, legend, etc.
     ######
-    # Add L where 850mb averaged vorticity maximum (approximate low pressure center) is.
-    kwargs = {'c':'red',
+    if plot_850:
+        # Add L where 850mb averaged vorticity maximum (approximate low pressure center) is.
+        kwargs = {'c':'red',
               'fontfamily':'sans-serif',
               'fontweight':'bold',
               'transform':ccrs.PlateCarree()
             }
-    for i,_ in enumerate(xx):
-        if extent[0]<xx[i]<extent[1] and extent[2]<yy[i]<extent[3]:
-            ax1.text(xx[i],yy[i],'L',**kwargs)
+        for i,_ in enumerate(xx):
+            if extent[0]<xx[i]<extent[1] and extent[2]<yy[i]<extent[3]:
+                ax1.text(xx[i],yy[i],'L',**kwargs)
 
     # Add legend
     kwargs = {'bbox_to_anchor':(1,0.99),
