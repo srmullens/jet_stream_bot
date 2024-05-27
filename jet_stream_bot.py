@@ -1192,6 +1192,8 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
         # Get avg_vort_max_values inside each contour.
         max_vort_locations = []
         vort_linewidths = []
+        xx = []
+        yy = []
         for cyclone in cyclones_850:
 
             # Find the maximum vorticity value inside the polygon
