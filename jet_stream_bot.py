@@ -101,7 +101,9 @@ location = 'CONUS'
 forecast = True
 
 # What forecast hour do you want to plot?
-if forecast: fhr_list = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,54,60,66,72,78,84,90,96]
+if forecast:
+    #fhr_list = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,54,60,66,72,78,84,90,96]
+    fhr_list = [0,6,12,18,24,30,36,42,48,60,72,84,96]
 else: fhr_list = [0]
 
 # Use smoothed data or raw data?
