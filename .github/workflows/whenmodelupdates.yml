@@ -1,9 +1,8 @@
 name: when_model_updates
 
 on:
-  push
-  #schedule:
-  #  - cron: '*/5 3,9,15,21 * * *'
+  schedule:
+    - cron: '*/5 3,9,15,21 * * *'
 
 jobs:
   build:
@@ -23,25 +22,7 @@ jobs:
 
     - name: Run code
       shell: bash -el {0}
-      run: |
-        echo "--> conda info"
-        conda info
-        echo "--> pwd"
-        pwd
-        echo "--> ls *.py"
-        ls *.py
-        echo "--> conda list xarray"
-        conda list xarray
-        echo "--> conda env list"
-        conda env list
-        #echo "--> conda activate base"
-        #conda init
-        #conda activate base
-        echo "--> python -c"
-        python -c "import numpy"
-        python -c "import xarray"
-        echo "--> run code"
-        python when_model_updates.py
+      run: python when_model_updates.py
 
     - name: Commit files
       shell: bash -el {0}
