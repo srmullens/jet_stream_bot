@@ -22,8 +22,19 @@ jobs:
     - name: Run code
       shell: bash -el {0}
       run: |
+        echo "--> conda info"
+        conda info
+        echo "--> pwd"
+        pwd
+        echo "--> ls *.py"
+        ls *.py
+        echo "--> conda list xarray"
         conda list xarray
+        echo "--> conda run -n test"
+        conda run -n test
+        echo "--> python -c"
         python -c "import xarray"
+        echo "--> run code"
         python when_model_updates.py
 
     - name: Commit files
