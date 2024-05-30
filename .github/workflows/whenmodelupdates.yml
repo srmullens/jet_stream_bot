@@ -9,13 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.7.7
+    - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.10
 
     - name: Import dependencies
-      run: pip install xarray pydap netCDF4 hdf5
+      run: conda install conda-forge::xarray pydap netCDF4 hdf5
 
     - name: Run code
       run: python when_model_updates.py
