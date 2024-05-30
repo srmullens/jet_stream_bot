@@ -15,7 +15,7 @@ jobs:
         python-version: 3.12.3
 
     - name: Import dependencies
-      run: conda install conda-forge::xarray pydap netCDF4 hdf5
+      run: conda install conda-forge::xarray==0.16 netcdf4==1.5 hdf5==1.10
 
     - name: Run code
       run: python when_model_updates.py
