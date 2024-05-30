@@ -9,15 +9,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - name: Setup Python 3.12
+      uses: conda-incubator/setup-miniconda@v3
       with:
+        auto-update-conda: true
+        miniconda-version: latest
         python-version: 3.12.3
 
     - name: Import dependencies
       shell: bash -el {0}
-      run: conda install xarray netcdf4 hdf5
+      run: conda install -c conda-forge xarray netcdf4 hdf5
 
     - name: Run code
       shell: bash -el {0}
