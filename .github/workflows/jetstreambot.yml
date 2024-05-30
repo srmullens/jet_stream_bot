@@ -3,7 +3,7 @@ name: Jet Stream Bot
 on:
   #push
   schedule:
-    - cron: '10 4 * * *'
+    - cron: '20 5 * * *'
     #- cron: '50 3,9,15,21 * * *'
 
 jobs:
