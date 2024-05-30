@@ -12,13 +12,16 @@ jobs:
     - uses: actions/checkout@v2
     - name: Set up Python 3.12
       uses: actions/setup-python@v2
+      shell: bash -el {0}
       with:
         python-version: 3.12.3
 
     - name: Import dependencies
+      shell: bash -el {0}
       run: conda install conda-forge::xarray netcdf4 hdf5
 
     - name: Run code
+      shell: bash -el {0}
       run: python when_model_updates.py
 
     - name: Commit files
