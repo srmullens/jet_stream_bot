@@ -17,7 +17,7 @@ jobs:
 
     - name: Import dependencies
       shell: bash -el {0}
-      run: conda install conda-forge::xarray netcdf4 hdf5
+      run: conda install xarray netcdf4 hdf5
 
     - name: Run code
       shell: bash -el {0}
@@ -36,6 +36,7 @@ jobs:
         #conda init
         #conda activate base
         echo "--> python -c"
+        python -c "import numpy"
         python -c "import xarray"
         echo "--> run code"
         python when_model_updates.py
