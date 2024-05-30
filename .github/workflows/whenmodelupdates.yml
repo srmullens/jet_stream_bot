@@ -30,8 +30,10 @@ jobs:
         ls *.py
         echo "--> conda list xarray"
         conda list xarray
-        echo "--> conda run -n test"
-        conda run -n test
+        echo "--> conda env list"
+        conda env list
+        echo "--> conda activate test"
+        conda activate test
         echo "--> python -c"
         python -c "import xarray"
         echo "--> run code"
