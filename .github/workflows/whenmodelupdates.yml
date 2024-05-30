@@ -21,6 +21,8 @@ jobs:
 
     - name: Run code
       shell: bash -el {0}
+      run: conda list xarray
+      run: python -c "import xarray"
       run: python when_model_updates.py
 
     - name: Commit files
