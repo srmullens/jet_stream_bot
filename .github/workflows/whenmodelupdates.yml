@@ -33,6 +33,7 @@ jobs:
         echo "--> conda env list"
         conda env list
         echo "--> conda activate base"
+        conda init
         conda activate base
         echo "--> python -c"
         python -c "import xarray"
