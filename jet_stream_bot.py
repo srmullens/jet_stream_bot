@@ -1750,7 +1750,7 @@ else: hour = 18
 
 # Assemble date, and move back by 6 hours for data availability
 date = dt(today.year, today.month, today.day, hour)
-date = date - timedelta(hours=6)
+#date = date - timedelta(hours=6)
 
 
 
