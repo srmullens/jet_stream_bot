@@ -1219,10 +1219,6 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
             elif cyclone.geom_type == 'LineString':
                 ax1.plot(*cyclone.xy, **kwargs)
 
-            kwargs['linewidth'] = 1
-            legend850 = mlines.Line2D([], [], **kwargs)
-            label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
-
     elif plot_850 and data_850:
         print('850: T/T',plot_850,data_850)
         # Unpack data
@@ -1246,10 +1242,6 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
                 ax1.plot(*cyclone.exterior.xy, **kwargs)
             elif cyclone.geom_type == 'LineString':
                 ax1.plot(*cyclone.xy, **kwargs)
-
-            kwargs['linewidth'] = 1
-            legend850 = mlines.Line2D([], [], **kwargs)
-            label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
 
     else: 
             print('850: Else',plot_850,data_850)
@@ -1564,6 +1556,15 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
                 'frameon':False
     }
     if plot_850:
+        # Plot the polygon
+        kwargs = {'color':'red', #lightgrey
+              'linestyle':'--',
+              'linewidth':1,
+              'transform':ccrs.PlateCarree()
+             }
+        legend850 = mlines.Line2D([], [], **kwargs)
+        label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
+            
         #leg = ax1.legend([legend2[0],legend1[0],legend850], [label2,label1,label850], **kwargs)
         leg = ax1.legend([legend2,legend1,legend850], [label2,label1,label850], **kwargs)
     else:
