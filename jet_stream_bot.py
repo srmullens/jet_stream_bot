@@ -1219,6 +1219,9 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
             elif cyclone.geom_type == 'LineString':
                 ax1.plot(*cyclone.xy, **kwargs)
 
+            if len(max_vort_locations)==0: data_850=False
+            else: data_850 = (max_vort_locations,vort_linewidths,cyclones_850)
+                    
     elif plot_850 and data_850:
         print('850: T/T',plot_850,data_850)
         # Unpack data
@@ -1535,7 +1538,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
     ######
     # With everything plotted, add titles, legend, etc.
     ######
-    if plot_850:
+    if plot_850 and data_850:
         # Add L where 850mb averaged vorticity maximum (approximate low pressure center) is.
         kwargs = {'c':'red',
               'fontfamily':'sans-serif',
@@ -1555,7 +1558,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
                 'loc':4,
                 'frameon':False
     }
-    if plot_850:
+    if plot_850 and data_850:
         # Plot the polygon
         kwargs = {'color':'red', #lightgrey
               'linestyle':'--',
@@ -1566,7 +1569,7 @@ def plot_the_map(args_map,args_uv,args_spd,args_div,date,
         label850 = r'850mb Vorticity' '\n' r'($10^{-4}\ s^{-1}$)'
             
         #leg = ax1.legend([legend2[0],legend1[0],legend850], [label2,label1,label850], **kwargs)
-        leg = ax1.legend([legend2,legend1,legend850], [label2,label1,label850], **kwargs)
+        leg = ax1.legend([legend2,legend1,legend850], [label2,label1,label850])
     else:
         kwargs['ncol'] = 2
         #leg = ax1.legend([legend2[0],legend1[0]], [label2,label1], **kwargs)
